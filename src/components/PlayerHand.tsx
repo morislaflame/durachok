@@ -30,6 +30,7 @@ const PlayerHand: React.FC<PlayerHandProps> = ({ cards, onCardSelect }) => {
             <Card 
               card={card}
               onClick={() => onCardSelect?.(card)}
+              isPlayerCard={true}
             />
           </div>
         );

@@ -21,11 +21,6 @@
     transition: transform 0.2s;
   }
   
-  .cardWrapper:hover {
-    transform: translateY(-20px);
-    z-index: 10;
-  }
-
 
   .opponentHand .cardWrapper {
     margin-left: -35px; /* Уменьшили отступ между картами */

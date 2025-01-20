@@ -5,9 +5,10 @@ import styles from './styles/Card.module.css';
 interface CardProps {
   card: CardType;
   onClick?: () => void;
+  isPlayerCard?: boolean;
 }
 
-const Card: React.FC<CardProps> = ({ card, onClick }) => {
+const Card: React.FC<CardProps> = ({ card, onClick, isPlayerCard }) => {
   const getSuitSymbol = (suit: string) => {
     switch (suit) {
       case 'hearts': return '♥';
@@ -23,7 +24,7 @@ const Card: React.FC<CardProps> = ({ card, onClick }) => {
     : styles.suitBlack;
 
   return (
-    <div className={styles.container} onClick={onClick}>
+    <div className={`${styles.container} ${isPlayerCard ? styles.playerCard : ''}`} onClick={onClick}>
       <div className={styles.topValue}>
         <span className={styles.rank}>{card.rank}</span>
         <span className={`${styles.suit} ${suitClass}`}>
