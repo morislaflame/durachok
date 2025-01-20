@@ -1,0 +1,49 @@
+.container {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    height: 100vh;
+    width: 100%;
+    background: #2c3e50;
+}
+
+.playersContainer {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    justify-content: space-between;
+}
+
+
+.playingField {
+    display: flex;
+    align-items: center;
+    gap: 40px;
+    position: relative;
+    height: 50%;
+}
+
+.tableCards {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 10px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 15px;
+    min-width: 60%;
+    min-height: 100%;
+    margin: 0 auto;
+}
+
+.cardSlot {
+    width: 120px;
+    height: 180px;
+    border: 2px dashed rgba(255, 255, 255, 0.3);
+    border-radius: 10px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.deckArea {
+    position: absolute;
+}

@@ -1,0 +1,23 @@
+.handContainer {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+  
+  .cardWrapper {
+    position: relative;
+    transition: transform 0.2s;
+  }
+  
+  .cardWrapper:hover {
+    transform: translateY(-20px);
+    z-index: 10;
+  }
+  
+  .cardBack {
+    width: 120px;
+    height: 180px;
+    background: linear-gradient(45deg, #1a1a1a, #2a2a2a);
+    border-radius: 10px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  }
