@@ -16,11 +16,13 @@ const OpponentHand: React.FC<OpponentHandProps> = ({ cards }) => {
         return (
           <div 
             key={`${card.suit}-${card.rank}`}
-            className={styles.cardWrapper}
+            className={`${styles.cardWrapper} opponent-card-${index}`}
             style={{ 
               marginLeft: `${marginLeft}px`, 
               zIndex: index,
-              transform: `rotate(${(index - cards.length / 2) * 10}deg)`
+              transform: `rotate(${(index - cards.length / 2) * 10}deg)`,
+              opacity: 0,
+              visibility: 'hidden'
             }}
           >
             <div className={styles.cardBack} />

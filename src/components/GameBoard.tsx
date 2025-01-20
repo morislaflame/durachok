@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Player from './Player';
 import Deck from './Deck';
 import { Card } from '../types/types';
 import styles from './styles/GameBoard.module.css';
 import Opponent from './Opponent';
 import GameStart from '../utils/GameStart';
+import { animateDealingCards } from '../utils/dealCards';
 
 const GameBoard: React.FC = () => {
   const [playerCards, setPlayerCards] = useState<Card[]>([]);
@@ -12,6 +13,23 @@ const GameBoard: React.FC = () => {
   const [trump, setTrump] = useState<Card | null>(null);
   const [deck, setDeck] = useState<Card[]>([]);
   const [isGameStarted, setIsGameStarted] = useState(false);
+  const [shouldAnimate, setShouldAnimate] = useState(false);
+
+  useEffect(() => {
+    if (shouldAnimate && playerCards.length > 0 && opponentCards.length > 0) {
+      // Небольшая задержка, чтобы убедиться, что DOM обновился
+      setTimeout(() => {
+        animateDealingCards({
+          playerCards,
+          opponentCards,
+          onComplete: () => {
+            console.log('Раздача карт завершена');
+            setShouldAnimate(false);
+          }
+        });
+      }, 100);
+    }
+  }, [shouldAnimate, playerCards, opponentCards]);
 
   const handleGameInitialized = (
     playerCards: Card[],
@@ -23,6 +41,7 @@ const GameBoard: React.FC = () => {
     setOpponentCards(opponentCards);
     setTrump(trump);
     setDeck(remainingDeck);
+    setShouldAnimate(true);
   };
 
   const handleStartGame = () => {

@@ -14,17 +14,19 @@ const PlayerHand: React.FC<PlayerHandProps> = ({ cards, onCardSelect }) => {
       {cards.map((card, index) => {
         const overlap = Math.min(35, 400 / cards.length);
         const marginLeft = index === 0 ? 0 : -overlap;
-        const rotationAngle = (index - cards.length / 2) * 3; // Небольшой поворот для каждой карты
+        const rotationAngle = (index - cards.length / 2) * 3;
         
         return (
           <div 
             key={`${card.suit}-${card.rank}`} 
-            className={styles.cardWrapper}
+            className={`${styles.cardWrapper} player-card-${index}`}
             style={{ 
               marginLeft: `${marginLeft}px`, 
               zIndex: index,
               transform: `rotate(${rotationAngle}deg)`,
-              transformOrigin: 'bottom center' // Точка вращения снизу по центру
+              transformOrigin: 'bottom center',
+              opacity: 0, // Начальное состояние - невидимое
+              visibility: 'hidden' // Скрываем карты полностью
             }}
           >
             <Card 
