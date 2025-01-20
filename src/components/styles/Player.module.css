@@ -14,8 +14,10 @@
     color: white;
     gap: 15px;
     border-radius: 10px 10px 0 0;
-    background: rgba(255, 255, 255, 0.523);
+    background: rgb(72 72 72);
+    z-index: 100;
   }
+
   
   .playerName {
     font-size: 1.2em;

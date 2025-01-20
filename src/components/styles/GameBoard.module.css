@@ -16,11 +16,13 @@
 
 
 .playingField {
+    margin: 20px 0;
     display: flex;
     align-items: center;
     gap: 40px;
     position: relative;
     height: 50%;
+    flex: 1;
 }
 
 .tableCards {
@@ -29,7 +31,7 @@
     gap: 10px;
     background: rgba(255, 255, 255, 0.1);
     border-radius: 15px;
-    min-width: 60%;
+    min-width: 80%;
     min-height: 100%;
     margin: 0 auto;
 }

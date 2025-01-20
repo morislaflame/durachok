@@ -1,5 +1,5 @@
 import React from 'react';
-import Hand from './Hand';
+import PlayerHand from './PlayerHand';
 import { Card } from '../types/types';
 import styles from './styles/Player.module.css';
 import Avatar from './Avatar';
@@ -13,7 +13,7 @@ interface PlayerProps {
   cards: Card[];
 }
 
-const Player: React.FC<PlayerProps> = ({ isOpponent, onStartGame, cards }) => {
+const Player: React.FC<PlayerProps> = ({ onStartGame, cards }) => {
 //   const [cards, setCards] = useState<Card[]>([]);
 
   const handleCardSelect = (card: Card) => {
@@ -23,10 +23,9 @@ const Player: React.FC<PlayerProps> = ({ isOpponent, onStartGame, cards }) => {
 
   return (
     <div className={styles.playerContainer}>
-      <Hand 
-        cards={cards} 
-        isOpponent={isOpponent}
-        onCardSelect={isOpponent ? undefined : handleCardSelect}
+      <PlayerHand 
+        cards={cards}
+        onCardSelect={handleCardSelect}
       />
       <div className={styles.playerInfo}>
         <UserActions onStartGame={onStartGame} />

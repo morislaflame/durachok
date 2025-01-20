@@ -2,7 +2,7 @@
   position: absolute;
   top: 0;
   left: -20px;
-  transform: rotate(5deg);
+  transform: rotate(15deg);
 }
 
 .deckPile {
@@ -21,9 +21,9 @@
 }
 
 .trumpCard {
-  position: absolute;
-  bottom: -30px;
-  left: 50%;
-  transform: translateX(-50%) rotate(90deg);
-  z-index: -1;
+    position: absolute;
+    bottom: -5px;
+    left: 80%;
+    transform: translateX(-50%) rotate(90deg);
+    z-index: -1;
 }

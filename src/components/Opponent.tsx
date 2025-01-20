@@ -1,5 +1,5 @@
 import React from 'react';
-import Hand from './Hand';
+import OpponentHand from './OpponentHand';
 import { Card } from '../types/types';
 import styles from './styles/Opponent.module.css';
 import Avatar from './Avatar';
@@ -14,10 +14,7 @@ const Opponent: React.FC<OpponentProps> = ({ cards }) => {
   return (
     <div className={styles.opponentContainer}>
       <Avatar imageUrl={avatarImage} size="small" alt="Opponent avatar" />
-      <Hand 
-        cards={cards} 
-        isOpponent={true}
-      />
+      <OpponentHand cards={cards} />
     </div>
   );
 };

@@ -3,18 +3,18 @@ import Card from './Card';
 import { Card as CardType } from '../types/types';
 import styles from './styles/Hand.module.css';
 
-interface HandProps {
+interface PlayerHandProps {
   cards: CardType[];
-  isOpponent: boolean;
   onCardSelect?: (card: CardType) => void;
 }
 
-const Hand: React.FC<HandProps> = ({ cards, isOpponent, onCardSelect }) => {
+const PlayerHand: React.FC<PlayerHandProps> = ({ cards, onCardSelect }) => {
   return (
-    <div className={`${styles.handContainer} ${isOpponent ? styles.opponentHand : ''}`}>
+    <div className={styles.handContainer}>
       {cards.map((card, index) => {
-        const overlap = Math.min(30, 400 / cards.length);
+        const overlap = Math.min(35, 400 / cards.length);
         const marginLeft = index === 0 ? 0 : -overlap;
+        const rotationAngle = (index - cards.length / 2) * 3; // Небольшой поворот для каждой карты
         
         return (
           <div 
@@ -23,17 +23,14 @@ const Hand: React.FC<HandProps> = ({ cards, isOpponent, onCardSelect }) => {
             style={{ 
               marginLeft: `${marginLeft}px`, 
               zIndex: index,
-              transform: isOpponent ? `rotate(${(index - cards.length / 2) * 5}deg)` : undefined
+              transform: `rotate(${rotationAngle}deg)`,
+              transformOrigin: 'bottom center' // Точка вращения снизу по центру
             }}
           >
-            {isOpponent ? (
-              <div className={styles.cardBack} />
-            ) : (
-              <Card 
-                card={card}
-                onClick={() => onCardSelect?.(card)}
-              />
-            )}
+            <Card 
+              card={card}
+              onClick={() => onCardSelect?.(card)}
+            />
           </div>
         );
       })}
@@ -41,4 +38,4 @@ const Hand: React.FC<HandProps> = ({ cards, isOpponent, onCardSelect }) => {
   );
 };
 
-export default Hand;
+export default PlayerHand;

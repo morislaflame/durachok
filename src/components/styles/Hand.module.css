@@ -2,7 +2,19 @@
     display: flex;
     justify-content: center;
     align-items: center;
+    position: absolute;
+    bottom: 40px;
+    width: 100%;
   }
+
+  .opponentHandContainer {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    transform: rotate(180deg);
+    position: absolute;
+  }
+
   
   .cardWrapper {
     position: relative;
@@ -14,18 +26,14 @@
     z-index: 10;
   }
 
-  .opponentHand {
-    transform: rotate(180deg);
-    position: absolute;
-}
 
   .opponentHand .cardWrapper {
-    margin-left: -25px;
-    transform: rotate(-20deg);
+    margin-left: -35px; /* Уменьшили отступ между картами */
+    transform-origin: top center; /* Изменили точку вращения для карт противника */
 }
 
 .opponentHand .cardWrapper:nth-child(odd) {
-    transform: rotate(10deg);
+    transform: rotate(20deg);
 }
   
   .cardBack {
