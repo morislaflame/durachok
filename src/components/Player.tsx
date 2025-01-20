@@ -1,16 +1,20 @@
-import React, { useState } from 'react';
+import React from 'react';
 import Hand from './Hand';
 import { Card } from '../types/types';
 import styles from './styles/Player.module.css';
 import Avatar from './Avatar';
+import UserActions from './UserActions';
+import avatarImage from '../assets/avatar.jpg';
 
 interface PlayerProps {
   isOpponent: boolean;
   avatarUrl?: string;
+  onStartGame?: () => void;
+  cards: Card[];
 }
 
-const Player: React.FC<PlayerProps> = ({ isOpponent, avatarUrl }) => {
-  const [cards, setCards] = useState<Card[]>([]);
+const Player: React.FC<PlayerProps> = ({ isOpponent, onStartGame, cards }) => {
+//   const [cards, setCards] = useState<Card[]>([]);
 
   const handleCardSelect = (card: Card) => {
     // Логика выбора карты
@@ -25,9 +29,10 @@ const Player: React.FC<PlayerProps> = ({ isOpponent, avatarUrl }) => {
         onCardSelect={isOpponent ? undefined : handleCardSelect}
       />
       <div className={styles.playerInfo}>
-        <Avatar imageUrl={avatarUrl} size="small" alt="Player avatar" />
+        <UserActions onStartGame={onStartGame} />
+        <Avatar imageUrl={avatarImage} size="small" alt="Player avatar" />
         <span className={styles.playerName}>
-          My name
+          Player
         </span>
         <span className={styles.cardsCount}>{cards.length}</span>
       </div>

@@ -13,11 +13,25 @@
     transform: translateY(-20px);
     z-index: 10;
   }
+
+  .opponentHand {
+    transform: rotate(180deg);
+    position: absolute;
+}
+
+  .opponentHand .cardWrapper {
+    margin-left: -25px;
+    transform: rotate(-20deg);
+}
+
+.opponentHand .cardWrapper:nth-child(odd) {
+    transform: rotate(10deg);
+}
   
   .cardBack {
-    width: 120px;
-    height: 180px;
-    background: linear-gradient(45deg, #1a1a1a, #2a2a2a);
-    border-radius: 10px;
+    width: 40px;
+    height: 60px;
+    background: linear-gradient(45deg, #666060, #2a2a2a);
+    border-radius: 5px;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
   }
