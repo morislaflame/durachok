@@ -1,26 +1,24 @@
-import React from 'react';
+import React, { forwardRef } from 'react';
 import { Card as CardType } from '../types/types';
-import Card from './Card';
 import styles from './styles/Deck.module.css';
 
 interface DeckProps {
-  trump?: CardType | null;
+  cards: CardType[];
 }
 
-const Deck: React.FC<DeckProps> = ({ trump }) => {
+const Deck = forwardRef<HTMLDivElement, DeckProps>(({ cards }, ref) => {
   return (
-    <div className={styles.deckContainer}>
+    <div ref={ref} className={styles.deckContainer}>
       <div className={styles.deckPile}>
-        <div className={styles.cardBackPile} />
+        {cards.map((card) => (
+          <div
+            key={card.id}
+            className={`cardWrapper ${styles.cardBackPile}`}
+          />
+        ))}
       </div>
-      
-      {trump && (
-        <div className={styles.trumpCard}>
-          <Card card={trump} />
-        </div>
-      )}
     </div>
   );
-};
+});
 
 export default Deck;

@@ -1,20 +1,15 @@
+// UserActions.tsx
 import React from 'react';
-import styles from './styles/UserActions.module.css';
 
-interface UserActionsProps {
+interface Props {
   onStartGame?: () => void;
 }
 
-const UserActions: React.FC<UserActionsProps> = ({ onStartGame }) => {
+const UserActions: React.FC<Props> = ({ onStartGame }) => {
   return (
-    <div className={styles.userActionsContainer}>
-      <button 
-        className={styles.actionButton}
-        onClick={onStartGame}
-      >
-       Start game
-      </button>
-    </div>
+    <button onClick={onStartGame}>
+      Start Game
+    </button>
   );
 };
 

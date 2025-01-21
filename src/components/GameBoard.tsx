@@ -1,73 +1,89 @@
-import React, { useState, useEffect } from 'react';
+// GameBoard.tsx
+import React, { useState, useRef } from 'react';
+import Opponent from './Opponent';
 import Player from './Player';
 import Deck from './Deck';
+import GameStart from '../utils/GameStart';
+
+import { captureFlipState, animateFlip, FlipState } from '../utils/dealCards';
 import { Card } from '../types/types';
 import styles from './styles/GameBoard.module.css';
-import Opponent from './Opponent';
-import GameStart from '../utils/GameStart';
-import { animateDealingCards } from '../utils/dealCards';
 
 const GameBoard: React.FC = () => {
-  const [playerCards, setPlayerCards] = useState<Card[]>([]);
-  const [opponentCards, setOpponentCards] = useState<Card[]>([]);
-  const [trump, setTrump] = useState<Card | null>(null);
-  const [deck, setDeck] = useState<Card[]>([]);
-  const [isGameStarted, setIsGameStarted] = useState(false);
-  const [shouldAnimate, setShouldAnimate] = useState(false);
+  const [cards, setCards] = useState<Card[]>([]);
 
-  useEffect(() => {
-    if (shouldAnimate && playerCards.length > 0 && opponentCards.length > 0) {
-      // Небольшая задержка, чтобы убедиться, что DOM обновился
-      setTimeout(() => {
-        animateDealingCards({
-          playerCards,
-          opponentCards,
-          onComplete: () => {
-            console.log('Раздача карт завершена');
-            setShouldAnimate(false);
-          }
-        });
-      }, 100);
-    }
-  }, [shouldAnimate, playerCards, opponentCards]);
+  // Храним FlipState здесь
+  const flipStateRef = useRef<FlipState | null>(null);
 
-  const handleGameInitialized = (
-    playerCards: Card[],
-    opponentCards: Card[],
-    trump: Card,
-    remainingDeck: Card[]
-  ) => {
-    setPlayerCards(playerCards);
-    setOpponentCards(opponentCards);
-    setTrump(trump);
-    setDeck(remainingDeck);
-    setShouldAnimate(true);
+  /**
+   * 1) Когда GameStart закончил инициализацию,
+   *    у нас просто все карты = deck (location='deck').
+   */
+  const handleGameInitialized = (allDeck: Card[]) => {
+    setCards(allDeck); // Теперь в Deck будет, допустим, 36 карт
   };
 
+  /**
+   * 2) При клике "Start Game" (у игрока):
+   *    мы раздаём 6 карт -> player, 6 карт -> opponent,
+   *    и запускаем Flip-анимацию.
+   */
   const handleStartGame = () => {
-    setIsGameStarted(true);
+    // 1) Снять старое состояние
+    flipStateRef.current = captureFlipState();
+
+    // 2) Меняем location (через setState)
+    setCards(prev => {
+      const updated = [...prev];
+      // Первые 6 -> player
+      for (let i = 0; i < 6 && i < updated.length; i++) {
+        updated[i].location = 'player';
+      }
+      // Следующие 6 -> opponent
+      for (let i = 6; i < 12 && i < updated.length; i++) {
+        updated[i].location = 'opponent';
+      }
+      return updated;
+    });
+
+    // 3) После перерисовки - animateFlip
+    requestAnimationFrame(() => {
+      if (flipStateRef.current) {
+        animateFlip(flipStateRef.current, () => {
+          console.log('Flip animation done.');
+          flipStateRef.current = null;
+        });
+      }
+    });
   };
 
   return (
     <div className={styles.container}>
-      {isGameStarted && (
-        <GameStart onGameInitialized={handleGameInitialized} />
-      )}
-      
+      {/*
+        При первом рендере GameStart монтируется,
+        вызывает handleGameInitialized(...),
+        и мы получаем все карты = 'deck'.
+      */}
+      <GameStart onGameInitialized={handleGameInitialized} />
+
       <div className={styles.playersContainer}>
-        <Opponent cards={opponentCards} />
-        
-        <div className={styles.playingField}>
-          <Deck trump={trump} />
+        {/* Оппонент */}
+        <Opponent cards={cards.filter(c => c.location === 'opponent')} />
+
+        <div className={`${styles.playingField} playingField`}>
+          {/* Колода (location='deck') */}
+          <Deck cards={cards.filter(c => c.location === 'deck')} />
+          
           <div className={styles.tableCards}>
-            {/* Игровое поле */}
+            {/* Игровое поле (если нужно) */}
           </div>
         </div>
 
-        <Player 
-          isOpponent={false} 
-          cards={playerCards}
-          onStartGame={!isGameStarted ? handleStartGame : undefined}
+        {/* Игрок */}
+        <Player
+          isOpponent={false}
+          cards={cards.filter(c => c.location === 'player')}
+          onStartGame={handleStartGame}
         />
       </div>
     </div>

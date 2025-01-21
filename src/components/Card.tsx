@@ -19,12 +19,15 @@ const Card: React.FC<CardProps> = ({ card, onClick, isPlayerCard }) => {
     }
   };
 
-  const suitClass = card.suit === 'hearts' || card.suit === 'diamonds' 
+  const suitClass = (card.suit === 'hearts' || card.suit === 'diamonds')
     ? styles.suitRed 
     : styles.suitBlack;
 
   return (
-    <div className={`${styles.container} ${isPlayerCard ? styles.playerCard : ''}`} onClick={onClick}>
+    <div
+      className={`${styles.container} ${isPlayerCard ? styles.playerCard : ''}`}
+      onClick={onClick}
+    >
       <div className={styles.topValue}>
         <span className={styles.rank}>{card.rank}</span>
         <span className={`${styles.suit} ${suitClass}`}>
