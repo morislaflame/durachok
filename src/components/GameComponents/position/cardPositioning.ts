@@ -54,6 +54,7 @@ function getDeckCardStyle(indexInGroup: number): CSSProperties {
     position: 'absolute',
     top: '20%',
     left: '-10px',
+    transform: 'rotate(20deg)',
     zIndex: 1000 - indexInGroup,
   };
 }
@@ -62,9 +63,9 @@ function getDeckCardStyle(indexInGroup: number): CSSProperties {
 function getTrumpCardStyle(): CSSProperties {
   return {
     position: 'absolute',
-    top: '18%',
-    left: '50px',
-    transform: 'translate(25px, 30px) rotate(100deg)',
+    top: '21%',
+    left: '35px',
+    transform: 'translate(25px, 30px) rotate(110deg)',
     zIndex: 900,
   };
 }
