@@ -1,5 +1,4 @@
 import React from 'react';
-import PlayerHand from './PlayerHand';
 import { Card } from '../../types/types';
 import styles from './styles/Player.module.css';
 import Avatar from './Avatar';
@@ -7,35 +6,22 @@ import UserActions from './UserActions';
 import avatarImage from '../../assets/avatar.jpg';
 
 interface PlayerProps {
-  isOpponent: boolean;
-  avatarUrl?: string;
   onStartGame?: () => void;
-  cards: Card[];
+  cards: Card[]; // чтобы узнать сколько у игрока карт, если нужно
 }
 
 const Player: React.FC<PlayerProps> = ({ onStartGame, cards }) => {
-//   const [cards, setCards] = useState<Card[]>([]);
-
-  const handleCardSelect = (card: Card) => {
-    // Логика выбора карты
-    console.log('Selected card:', card);
-  };
-
   return (
     <div className={styles.playerContainer}>
-      <PlayerHand 
-        cards={cards}
-        onCardSelect={handleCardSelect}
-      />
       <div className={styles.playerInfo}>
+        {/* Кнопка "Start Game" будет здесь */}
         <UserActions onStartGame={onStartGame} />
+
         <Avatar imageUrl={avatarImage} size="small" alt="Player avatar" />
-        <span className={styles.playerName}>
-          Player
-        </span>
-        <span className={styles.cardsCount}>{cards.length}</span>
+        
+        <span className={styles.playerName}>Player</span>
+        <span className={styles.cardsCount}>Cards: {cards.length}</span>
       </div>
-      
     </div>
   );
 };

@@ -1,14 +1,14 @@
+// components/CardFace.tsx
 import React from 'react';
 import { Card as CardType } from '../../types/types';
 import styles from './styles/Card.module.css';
 
-interface CardProps {
+interface CardFaceProps {
   card: CardType;
-  onClick?: () => void;
   isPlayerCard?: boolean;
 }
 
-const Card: React.FC<CardProps> = ({ card, onClick, isPlayerCard }) => {
+const CardFace: React.FC<CardFaceProps> = ({ card, isPlayerCard }) => {
   const getSuitSymbol = (suit: string) => {
     switch (suit) {
       case 'hearts': return '♥';
@@ -24,10 +24,7 @@ const Card: React.FC<CardProps> = ({ card, onClick, isPlayerCard }) => {
     : styles.suitBlack;
 
   return (
-    <div
-      className={`${styles.container} ${isPlayerCard ? styles.playerCard : ''}`}
-      onClick={onClick}
-    >
+    <div className={`${styles.container} ${isPlayerCard ? styles.playerCard : ''}`}>
       <div className={styles.topValue}>
         <span className={styles.rank}>{card.rank}</span>
         <span className={`${styles.suit} ${suitClass}`}>
@@ -44,4 +41,4 @@ const Card: React.FC<CardProps> = ({ card, onClick, isPlayerCard }) => {
   );
 };
 
-export default Card;
+export default CardFace;
