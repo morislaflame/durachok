@@ -16,11 +16,24 @@ export function animateFlip(oldState: FlipState, onComplete?: () => void) {
   Flip.from(oldState, {
     duration: 0.6,
     absolute: true,
+    stagger: 0.05,
     onEnter(elements) {
-      return gsap.from(elements, { opacity: 0, y: -30 });
+      console.log('onEnter called with elements:', elements);
+      return gsap.from(elements, { 
+        opacity: 0, 
+        y: -30, 
+        stagger: 0.1, // Добавляем задержку 0.1 секунды между анимациями
+        ease: "power2.out" 
+      });
     },
     onLeave(elements) {
-      return gsap.to(elements, { opacity: 0, y: 30 });
+      console.log('onLeave called with elements:', elements);
+      return gsap.to(elements, { 
+        opacity: 0, 
+        y: 30, 
+        stagger: 0.05,
+        ease: "power2.in" 
+      });
     },
     onComplete,
   });
