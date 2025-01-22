@@ -76,31 +76,31 @@ const GameBoard: React.FC<GameBoardProps> = ({ numPlayers }) => {
       const maxCardsForDeal = lastIndex; // оставили 1 карту под козырь
       const numOpponents = numPlayers - 1;
 
-      // функция "отдать карту игроку"
+      // Функция "отдать карту игроку"
       const giveCardToPlayer = (i: number) => {
         updated[i].location = 'player';
         updated[i].seatIndex = undefined;
       };
-      // функция "отдать карту конкретному оппоненту seatIndex"
+      // Функция "отдать карту конкретному оппоненту seatIndex"
       const giveCardToOpponent = (i: number, seat: number) => {
         updated[i].location = 'opponent';
         updated[i].seatIndex = seat;
       };
 
-      // 1) Игроку 6 карт (если хватает)
-      const playerCount = Math.min(6, maxCardsForDeal - deckPos);
-      for (let i = 0; i < playerCount; i++) {
-        giveCardToPlayer(deckPos + i);
-      }
-      deckPos += playerCount;
+      const cardsPerPlayer = 6;
 
-      // 2) Каждому оппоненту тоже 6 карт
-      for (let seat = 0; seat < numOpponents; seat++) {
-        const oppCount = Math.min(6, maxCardsForDeal - deckPos);
-        for (let i = 0; i < oppCount; i++) {
-          giveCardToOpponent(deckPos + i, seat);
+      // Цикл для раздачи карт циклически между игроком и оппонентами
+      for (let i = 0; i < cardsPerPlayer; i++) {
+        if (deckPos >= maxCardsForDeal) break;
+
+        // Раздаём одну карту игроку
+        giveCardToPlayer(deckPos++);
+        
+        // Раздаём по одной карте каждому оппоненту
+        for (let seat = 0; seat < numOpponents; seat++) {
+          if (deckPos >= maxCardsForDeal) break;
+          giveCardToOpponent(deckPos++, seat);
         }
-        deckPos += oppCount;
       }
 
       return updated;
