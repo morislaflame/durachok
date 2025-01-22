@@ -8,7 +8,6 @@ import Player from './Player';
 
 import styles from './styles/GameBoard.module.css';
 import { getCardStyle, tablePositions } from './position/cardPositioning';
-import gsap from 'gsap';
 
 interface GameBoardProps {
   /** Общее кол-во игроков за столом (1 - это сам пользователь + (numPlayers - 1) оппонентов). */
@@ -167,6 +166,8 @@ const GameBoard: React.FC<GameBoardProps> = ({ numPlayers }) => {
   const playerCards = cards.filter((c) => c.location === 'player');
   const opponentCards = cards.filter((c) => c.location === 'opponent');
   const tableCards = cards.filter((c) => c.location === 'table');
+
+  console.log('tableCards', tableCards);
 
   return (
     <div className={styles.gameBoard}>
