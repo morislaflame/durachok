@@ -6,9 +6,10 @@ import styles from './styles/Card.module.css';
 interface CardFaceProps {
   card: CardType;
   isPlayerCard?: boolean;
+  isTableCard?: boolean;
 }
 
-const CardFace: React.FC<CardFaceProps> = ({ card, isPlayerCard }) => {
+const CardFace: React.FC<CardFaceProps> = ({ card, isPlayerCard, isTableCard }) => {
   const getSuitSymbol = (suit: string) => {
     switch (suit) {
       case 'hearts': return '♥';
@@ -24,7 +25,7 @@ const CardFace: React.FC<CardFaceProps> = ({ card, isPlayerCard }) => {
     : styles.suitBlack;
 
   return (
-    <div className={`${styles.container} ${isPlayerCard ? styles.playerCard : ''}`}>
+    <div className={`${styles.container} ${isPlayerCard ? styles.playerCard : ''} ${isTableCard ? styles.tableCard : ''}`}>
       <div className={styles.topValue}>
         <span className={styles.rank}>{card.rank}</span>
         <span className={`${styles.suit} ${suitClass}`}>

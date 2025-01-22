@@ -1,5 +1,5 @@
 .container {
-    width: 40px;
+    width: 50px;
     height: 70px;
     background: white;
     border-radius: 8px;
@@ -12,6 +12,11 @@
 }
 
 .playerCard {
+    width: 60px;
+    height: 85px;
+}
+
+.tableCard {
     width: 60px;
     height: 85px;
 }

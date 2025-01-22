@@ -4,8 +4,24 @@ import { CSSProperties } from 'react';
 import { generateOpponentSeatPositions } from './generateOpponentPositions';
 
 /**
+ * Определение позиций на столе (в процентах для адаптивности)
+ */
+export const tablePositions: { top: number; left: number }[] = [
+  { top: 50, left: 40 },
+  { top: 50, left: 50 },
+  { top: 50, left: 60 },
+  { top: 60, left: 40 },
+  { top: 60, left: 50 },
+  { top: 60, left: 60 },
+  { top: 70, left: 40 },
+  { top: 70, left: 50 },
+  { top: 70, left: 60 },
+  // Добавьте больше позиций по необходимости
+];
+
+/**
  * Возвращает стили (top/left/transform/...) для конкретной карты
- * в зависимости от её location (deck/trump/player/opponent)
+ * в зависимости от её location (deck/trump/player/opponent/table)
  * и, если нужно, учитывая seatIndex (какой именно оппонент).
  */
 export function getCardStyle(
@@ -40,6 +56,9 @@ export function getCardStyle(
         numOpponents
       );
     }
+
+    case 'table':
+      return getTableCardStyle(card.tablePositionIndex || 0);
 
     default:
       return {};
@@ -119,5 +138,21 @@ function getOpponentCardStyle(
     left: basePos.left,
     transform: `translateX(${offsetX + overlap * indexInGroup}px) rotate(${rotationAngle}deg)`,
     zIndex: 10 + indexInGroup,
+  };
+}
+
+// Карты на столе
+function getTableCardStyle(tablePositionIndex: number): CSSProperties {
+  const pos = tablePositions[tablePositionIndex];
+  if (!pos) {
+    return {};
+  }
+
+  return {
+    position: 'absolute',
+    top: `${pos.top}%`,
+    left: `${pos.left}%`,
+    transform: 'translate(-50%, -50%)',
+    zIndex: 500 + tablePositionIndex, // для отображения поверх других элементов
   };
 }
