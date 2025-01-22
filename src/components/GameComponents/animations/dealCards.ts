@@ -17,6 +17,7 @@ export function animateFlip(oldState: FlipState, onComplete?: () => void) {
     duration: 0.9,
     absolute: true,
     stagger: 0.05,
+    ease: 'power3.out',
     onComplete,
   });
 }

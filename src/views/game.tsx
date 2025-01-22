@@ -5,7 +5,7 @@ export const Game = () => {
 
     return (
         <div className="app">
-            <GameBoard numPlayers={3} />
+            <GameBoard numPlayers={4} />
         </div>
     );
 }
