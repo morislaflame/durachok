@@ -1,8 +1,15 @@
+.opponents {
+    display: flex;
+    align-items: center;
+    justify-content: space-around;
+    z-index: 1000;
+    width: 100%;
+}
+
 .opponentContainer {
     display: flex;
     flex-direction: column;
     align-items: center;
-    padding: 20px 0;
     z-index: 1000;
     width: fit-content;
   }
@@ -20,4 +27,20 @@
     width: 100%;
     height: 100%;
     object-fit: cover;
+  }
+
+  .opponentInfo {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .opponentName {
+    font-size: 8px;
+    font-weight: bold;
+  }
+
+  .cardsCount {
+    font-size: 8px;
+    font-weight: bold;
   }

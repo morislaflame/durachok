@@ -3,21 +3,20 @@ import React, { useState, useRef, useEffect, useLayoutEffect } from 'react';
 import { captureFlipState, animateFlip, FlipState } from './animations/dealCards';
 import { Card, Suit, Rank } from '../../types/types';
 import CardItem from './CardItem';
-import OpponentsContainer from './OpponentsContainer'; 
+import OpponentsContainer from './OpponentsContainer';
 import Player from './Player';
 
 import styles from './styles/GameBoard.module.css';
 import { getCardStyle } from './position/cardPositioning';
 
 interface GameBoardProps {
-  /** Общее кол-во игроков за столом (1 - это сам user, + (numPlayers - 1) оппонентов). */
+  /** Общее кол-во игроков за столом (1 - это сам пользователь + (numPlayers - 1) оппонентов). */
   numPlayers: number;
 }
 
 const suits: Suit[] = ['hearts', 'diamonds', 'clubs', 'spades'];
 const ranks: Rank[] = ['6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A'];
 
-/** Генерация и перемешивание колоды */
 function createAllDeck(): Card[] {
   const deck: Card[] = [];
   let idCount = 0;
@@ -27,11 +26,11 @@ function createAllDeck(): Card[] {
         id: 'card_' + (idCount++),
         suit,
         rank,
-        location: 'deck', // Изначально все в колоде
+        location: 'deck',
       });
     }
   }
-  // Перемешаем
+  // Перемешивание
   for (let i = deck.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
     [deck[i], deck[j]] = [deck[j], deck[i]];
@@ -45,13 +44,13 @@ const GameBoard: React.FC<GameBoardProps> = ({ numPlayers }) => {
 
   const flipStateRef = useRef<FlipState | null>(null);
 
-  // 1) При первом рендере — создаём колоду
+  // 1) Генерация колоды при первом рендере
   useEffect(() => {
     const initialDeck = createAllDeck();
     setCards(initialDeck);
   }, []);
 
-  // 2) Когда `cards` меняется, если есть сохранённое flipState — запускаем анимацию
+  // 2) Если flipStateRef не пуст, делаем анимацию Flip при изменении стейта cards
   useLayoutEffect(() => {
     if (flipStateRef.current) {
       animateFlip(flipStateRef.current, () => {
@@ -60,49 +59,42 @@ const GameBoard: React.FC<GameBoardProps> = ({ numPlayers }) => {
     }
   }, [cards]);
 
-  // 3) Нажатие "Start Game":
-  //    - Снимаем Flip-состояние
-  //    - Определяем козырь (нижняя карта в колоде) => переводим её в location='trump'
-  //    - Раздаём по 6 карт игроку (location='player') и оставшимся
-  //      (location='opponent' + seatIndex=?).
+  // 3) Start Game: выбираем нижнюю карту как козырь, раздаём игроку 6, и оппонентам
   const handleStartGame = () => {
     flipStateRef.current = captureFlipState();
 
     setCards((prev) => {
       const updated = [...prev];
-      if (updated.length === 0) return updated;
+      if (!updated.length) return updated;
 
-      // Найдём последнюю карту, сделаем её trump
       const lastIndex = updated.length - 1;
       const trumpCard = updated[lastIndex];
-      trumpCard.location = 'trump';
+      trumpCard.location = 'trump';  // карта-козырь
       setTrumpSuit(trumpCard.suit);
 
-      // Раздаём
+      let deckPos = 0;
+      const maxCardsForDeal = lastIndex; // оставили 1 карту под козырь
+      const numOpponents = numPlayers - 1;
 
-      // 1) 6 карт игроку (если их хватает)
-      let deckPos = 0; 
-      const maxCardsForDeal = lastIndex; // -1 карта под козырь
-
-      const giveCardToPlayer = (cardIndex: number) => {
-        updated[cardIndex].location = 'player';
-        updated[cardIndex].seatIndex = undefined; // у игрока seatIndex не нужен
+      // функция "отдать карту игроку"
+      const giveCardToPlayer = (i: number) => {
+        updated[i].location = 'player';
+        updated[i].seatIndex = undefined;
+      };
+      // функция "отдать карту конкретному оппоненту seatIndex"
+      const giveCardToOpponent = (i: number, seat: number) => {
+        updated[i].location = 'opponent';
+        updated[i].seatIndex = seat;
       };
 
-      const giveCardToOpponent = (cardIndex: number, seatIndex: number) => {
-        updated[cardIndex].location = 'opponent';
-        updated[cardIndex].seatIndex = seatIndex;
-      };
-
-      // Сначала игроку 6 карт
+      // 1) Игроку 6 карт (если хватает)
       const playerCount = Math.min(6, maxCardsForDeal - deckPos);
       for (let i = 0; i < playerCount; i++) {
         giveCardToPlayer(deckPos + i);
       }
       deckPos += playerCount;
 
-      // Теперь оставшимся (numPlayers - 1) оппонентам
-      const numOpponents = numPlayers - 1;
+      // 2) Каждому оппоненту тоже 6 карт
       for (let seat = 0; seat < numOpponents; seat++) {
         const oppCount = Math.min(6, maxCardsForDeal - deckPos);
         for (let i = 0; i < oppCount; i++) {
@@ -115,27 +107,21 @@ const GameBoard: React.FC<GameBoardProps> = ({ numPlayers }) => {
     });
   };
 
-  // Сколько карт у "player"
   const playerCards = cards.filter((c) => c.location === 'player');
-
-  // Оппоненты рисуем отдельным контейнером
-  // (он может показать аватарки для каждого seatIndex)
   const opponentCards = cards.filter((c) => c.location === 'opponent');
 
   return (
     <div className={styles.gameBoard}>
-
-      {/* Тут будет контейнер всех оппонентов, 
-          каждый оппонент может получить свой seatIndex */}
+      {/* Все оппоненты (аватар + счётчик) */}
       <OpponentsContainer 
-        numPlayers={numPlayers} 
-        allOpponentCards={opponentCards}
+        numPlayers={numPlayers}
+        allOpponentCards={opponentCards} 
       />
 
-      {/* Игрок (кнопка Start, имя, и т.п.) */}
+      {/* Сам игрок (кнопка Start + аватар + кол-во карт) */}
       <Player onStartGame={handleStartGame} cards={playerCards} />
 
-      {/* Выкладываем все карты единой простынёй (Flip анимирует) */}
+      {/* Все карты (единым списком) */}
       {cards.map((card) => {
         const style = getCardStyle(card, cards, numPlayers);
         return (
