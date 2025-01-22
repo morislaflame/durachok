@@ -1,18 +1,28 @@
 import styled from "styled-components";
 import {PlayIcon} from "./icons/play.tsx";
 import {PlusIcon} from "./icons/plus.tsx";
+import {useNavigate} from "react-router";
 
 export const Bottom = () => {
+    const nav = useNavigate()
+
+    const onPlay = () => {
+        nav('/game')
+    }
+    const onCreate = () => {
+        nav('/create')
+    }
+
     return (
         <Container>
             <Content>
-                <SecondaryButton>
+                <SecondaryButton onClick={onPlay}>
                     <PlayIcon/>
                     <span>
                     Быстрая игра
                         </span>
                 </SecondaryButton>
-                <PrimaryButton>
+                <PrimaryButton onClick={onCreate}>
                     <PlusIcon/>
                     Создать игру
                 </PrimaryButton>
@@ -77,13 +87,10 @@ const PrimaryButton = styled.div`
     min-width: 160px;
     color: #180A03;
     text-align: center;
-    font-size: 14px;
+    font-size: 16px;
     font-style: normal;
     font-weight: 500;
     line-height: 120%; /* 19.2px */
-    @media (max-width: 380px) {
-        font-size: 14px;
-    }
 
     &:before {
         position: absolute;
@@ -123,7 +130,7 @@ const SecondaryButton = styled.div`
         font-size: 14px;
     }
     isolation: isolate;
-    
+
     &:before {
         content: "";
         position: absolute;
@@ -133,7 +140,8 @@ const SecondaryButton = styled.div`
         background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="203" height="52" viewBox="0 0 203 52" fill="none"><path fill-rule="evenodd" clip-rule="evenodd" d="M9.78623 0H-5L15.5471 26L-5 52H9.78623L30.3333 26L9.78623 0ZM45.1196 0H30.3333L50.8804 26L30.3333 52H45.1196L65.6667 26L45.1196 0ZM65.6667 0H80.4529L101 26L80.4529 52H65.6667L86.2138 26L65.6667 0ZM151.12 0H136.333L156.88 26L136.333 52H151.12L171.667 26L151.12 0ZM101 0H115.786L136.333 26L115.786 52H101L121.547 26L101 0ZM186.453 0H171.667L192.214 26L171.667 52H186.453L207 26L186.453 0Z" fill="url(%23paint0_linear_213_260)"/><defs><linearGradient id="paint0_linear_213_260" x1="101" y1="0" x2="101" y2="52" gradientUnits="userSpaceOnUse"><stop stop-color="%23FFEA90"/><stop offset="1" stop-color="%23FFEA90" stop-opacity="0.4"/></linearGradient></defs></svg>');
         background-size: cover;
         z-index: -1;
-     }
+    }
+
     &:after {
         position: absolute;
         pointer-events: none;
@@ -146,4 +154,10 @@ const SecondaryButton = styled.div`
         mask-composite: exclude;
         padding: 1px;
     }
+
+    &:active {
+        transform: scale(0.95);
+    }
+
+    cursor: pointer;
 `
