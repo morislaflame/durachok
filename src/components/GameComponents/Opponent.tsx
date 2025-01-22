@@ -1,3 +1,4 @@
+// Opponent.tsx
 import React from 'react';
 import { Card } from '../../types/types';
 import styles from './styles/Opponent.module.css';
@@ -5,15 +6,20 @@ import Avatar from './Avatar';
 import avatarImage from '../../assets/avatar.jpg';
 
 interface OpponentProps {
-  cards: Card[]; // чтобы показать, сколько у него карт, если нужно
+  seatIndex: number;
+  cards: Card[];
 }
 
-const Opponent: React.FC<OpponentProps> = () => {
+const Opponent: React.FC<OpponentProps> = ({ seatIndex, cards }) => {
+  // Можем вывести, сколько карт у этого оппонента, или имя вида "Opponent #3"
+  const name = `Opponent #${seatIndex + 1}`;
+
   return (
     <div className={styles.opponentContainer}>
-      <Avatar imageUrl={avatarImage} size="small" alt="Opponent avatar" />
+      <Avatar imageUrl={avatarImage} size="small" alt={name} />
       <div className={styles.opponentInfo}>
-        <span className={styles.opponentName}>Opponent</span>
+        <span className={styles.opponentName}>{name}</span>
+        <span className={styles.cardsCount}>Cards: {cards.length}</span>
       </div>
     </div>
   );

@@ -1,15 +1,23 @@
+// GameBoard.tsx
 import React, { useState, useRef, useEffect, useLayoutEffect } from 'react';
 import { captureFlipState, animateFlip, FlipState } from './animations/dealCards';
 import { Card, Suit, Rank } from '../../types/types';
 import CardItem from './CardItem';
-import Opponent from './Opponent';
+import OpponentsContainer from './OpponentsContainer'; 
 import Player from './Player';
 
 import styles from './styles/GameBoard.module.css';
+import { getCardStyle } from './position/cardPositioning';
+
+interface GameBoardProps {
+  /** Общее кол-во игроков за столом (1 - это сам user, + (numPlayers - 1) оппонентов). */
+  numPlayers: number;
+}
 
 const suits: Suit[] = ['hearts', 'diamonds', 'clubs', 'spades'];
 const ranks: Rank[] = ['6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A'];
 
+/** Генерация и перемешивание колоды */
 function createAllDeck(): Card[] {
   const deck: Card[] = [];
   let idCount = 0;
@@ -19,11 +27,10 @@ function createAllDeck(): Card[] {
         id: 'card_' + (idCount++),
         suit,
         rank,
-        location: 'deck', // изначально все в колоде
+        location: 'deck', // Изначально все в колоде
       });
     }
   }
-
   // Перемешаем
   for (let i = deck.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
@@ -32,8 +39,10 @@ function createAllDeck(): Card[] {
   return deck;
 }
 
-const GameBoard: React.FC = () => {
+const GameBoard: React.FC<GameBoardProps> = ({ numPlayers }) => {
   const [cards, setCards] = useState<Card[]>([]);
+  const [trumpSuit, setTrumpSuit] = useState<Suit | null>(null);
+
   const flipStateRef = useRef<FlipState | null>(null);
 
   // 1) При первом рендере — создаём колоду
@@ -51,94 +60,87 @@ const GameBoard: React.FC = () => {
     }
   }, [cards]);
 
-  // 3) Нажатие "Start Game": снимаем Flip-состояние и меняем `location`
+  // 3) Нажатие "Start Game":
+  //    - Снимаем Flip-состояние
+  //    - Определяем козырь (нижняя карта в колоде) => переводим её в location='trump'
+  //    - Раздаём по 6 карт игроку (location='player') и оставшимся
+  //      (location='opponent' + seatIndex=?).
   const handleStartGame = () => {
     flipStateRef.current = captureFlipState();
 
-    setCards(prev => {
+    setCards((prev) => {
       const updated = [...prev];
-      // Первые 6 -> player
-      for (let i = 0; i < 6 && i < updated.length; i++) {
-        updated[i].location = 'player';
+      if (updated.length === 0) return updated;
+
+      // Найдём последнюю карту, сделаем её trump
+      const lastIndex = updated.length - 1;
+      const trumpCard = updated[lastIndex];
+      trumpCard.location = 'trump';
+      setTrumpSuit(trumpCard.suit);
+
+      // Раздаём
+
+      // 1) 6 карт игроку (если их хватает)
+      let deckPos = 0; 
+      const maxCardsForDeal = lastIndex; // -1 карта под козырь
+
+      const giveCardToPlayer = (cardIndex: number) => {
+        updated[cardIndex].location = 'player';
+        updated[cardIndex].seatIndex = undefined; // у игрока seatIndex не нужен
+      };
+
+      const giveCardToOpponent = (cardIndex: number, seatIndex: number) => {
+        updated[cardIndex].location = 'opponent';
+        updated[cardIndex].seatIndex = seatIndex;
+      };
+
+      // Сначала игроку 6 карт
+      const playerCount = Math.min(6, maxCardsForDeal - deckPos);
+      for (let i = 0; i < playerCount; i++) {
+        giveCardToPlayer(deckPos + i);
       }
-      // Следующие 6 -> opponent
-      for (let i = 6; i < 12 && i < updated.length; i++) {
-        updated[i].location = 'opponent';
+      deckPos += playerCount;
+
+      // Теперь оставшимся (numPlayers - 1) оппонентам
+      const numOpponents = numPlayers - 1;
+      for (let seat = 0; seat < numOpponents; seat++) {
+        const oppCount = Math.min(6, maxCardsForDeal - deckPos);
+        for (let i = 0; i < oppCount; i++) {
+          giveCardToOpponent(deckPos + i, seat);
+        }
+        deckPos += oppCount;
       }
+
       return updated;
     });
   };
 
-  /**
-   * Единая функция для вычисления позиции (top/left/transform/…)
-   * в зависимости от card.location и её индекса в группе.
-   */
-  const getCardStyle = (card: Card): React.CSSProperties => {
-    const sameLocationCards = cards.filter(c => c.location === card.location);
-    const indexInGroup = sameLocationCards.findIndex(c => c.id === card.id);
+  // Сколько карт у "player"
+  const playerCards = cards.filter((c) => c.location === 'player');
 
-    switch (card.location) {
-      case 'deck': {
-        // Положим колоду слева
-        return {
-          position: 'absolute',
-          top: '10%',
-          left: '5%',
-          transform: `rotate(${indexInGroup}deg)`,
-          zIndex: 1000 - indexInGroup,
-        };
-      }
-      case 'player': {
-        // Веер внизу
-        const overlap = Math.min(30, 400 / sameLocationCards.length);
-        const offsetX = -((sameLocationCards.length - 1) * overlap) / 2;
-        const rotationAngle = (indexInGroup - sameLocationCards.length / 2) * 3;
-
-        return {
-          position: 'absolute',
-          bottom: '20%',
-          left: '50%',
-          transform: `translateX(${offsetX + overlap * indexInGroup}px) rotate(${rotationAngle}deg)`,
-          transformOrigin: 'bottom center',
-          zIndex: 10 + indexInGroup,
-        };
-      }
-      case 'opponent': {
-        // Веер сверху
-        const overlap = Math.min(30, 400 / sameLocationCards.length);
-        const offsetX = -((sameLocationCards.length - 1) * overlap) / 2;
-        const rotationAngle = (indexInGroup - sameLocationCards.length / 2) * 5;
-
-        return {
-          position: 'absolute',
-          top: '10%',
-          left: '50%',
-          transform: `translateX(${offsetX + overlap * indexInGroup}px) rotate(${rotationAngle}deg)`,
-          zIndex: 10 + indexInGroup,
-        };
-      }
-      default:
-        return {};
-    }
-  };
-
-  // Считаем сколько карт у player/opponent (для отображения в их компонентах)
-  const playerCards = cards.filter(c => c.location === 'player');
-  const opponentCards = cards.filter(c => c.location === 'opponent');
+  // Оппоненты рисуем отдельным контейнером
+  // (он может показать аватарки для каждого seatIndex)
+  const opponentCards = cards.filter((c) => c.location === 'opponent');
 
   return (
     <div className={styles.gameBoard}>
 
-      <Opponent cards={opponentCards} />
+      {/* Тут будет контейнер всех оппонентов, 
+          каждый оппонент может получить свой seatIndex */}
+      <OpponentsContainer 
+        numPlayers={numPlayers} 
+        allOpponentCards={opponentCards}
+      />
 
+      {/* Игрок (кнопка Start, имя, и т.п.) */}
       <Player onStartGame={handleStartGame} cards={playerCards} />
 
-      {/* Все карты одной простынёй */}
+      {/* Выкладываем все карты единой простынёй (Flip анимирует) */}
       {cards.map((card) => {
-        const style = getCardStyle(card);
+        const style = getCardStyle(card, cards, numPlayers);
         return (
           <div key={card.id} style={style}>
-            <CardItem card={card} />
+            <CardItem card={card} trumpSuit={trumpSuit} />
           </div>
         );
       })}
