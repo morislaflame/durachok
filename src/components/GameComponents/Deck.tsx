@@ -1,5 +1,5 @@
 import React, { forwardRef } from 'react';
-import { Card as CardType } from '../types/types';
+import { Card as CardType } from '../../types/types';
 import styles from './styles/Deck.module.css';
 
 interface DeckProps {

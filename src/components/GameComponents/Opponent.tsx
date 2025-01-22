@@ -1,9 +1,9 @@
 import React from 'react';
 import OpponentHand from './OpponentHand';
-import { Card } from '../types/types';
+import { Card } from '../../types/types';
 import styles from './styles/Opponent.module.css';
 import Avatar from './Avatar';
-import avatarImage from '../assets/avatar.jpg';
+import avatarImage from '../../assets/avatar.jpg';
 
 interface OpponentProps {
   cards: Card[];

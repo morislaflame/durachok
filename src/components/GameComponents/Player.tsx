@@ -1,10 +1,10 @@
 import React from 'react';
 import PlayerHand from './PlayerHand';
-import { Card } from '../types/types';
+import { Card } from '../../types/types';
 import styles from './styles/Player.module.css';
 import Avatar from './Avatar';
 import UserActions from './UserActions';
-import avatarImage from '../assets/avatar.jpg';
+import avatarImage from '../../assets/avatar.jpg';
 
 interface PlayerProps {
   isOpponent: boolean;

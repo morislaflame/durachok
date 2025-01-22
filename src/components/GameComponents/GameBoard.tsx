@@ -3,10 +3,10 @@ import React, { useState, useRef } from 'react';
 import Opponent from './Opponent';
 import Player from './Player';
 import Deck from './Deck';
-import GameStart from '../utils/GameStart';
+import GameStart from '../../utils/GameStart';
 
-import { captureFlipState, animateFlip, FlipState } from '../utils/dealCards';
-import { Card } from '../types/types';
+import { captureFlipState, animateFlip, FlipState } from '../../utils/dealCards';
+import { Card } from '../../types/types';
 import styles from './styles/GameBoard.module.css';
 
 const GameBoard: React.FC = () => {
