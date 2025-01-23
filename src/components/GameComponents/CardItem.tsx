@@ -38,7 +38,9 @@ const CardItem: React.FC<CardItemProps> = ({ card, onClick, onCardDrop, shouldRe
     })[0];
 
     return () => {
+        gsap.set(element, { x: 0, y: 0 });
       draggable.kill();
+      
     };
   }, [card.location, onCardDrop, card.id]);
 

@@ -2,18 +2,7 @@
 import { Card } from '../../../types/types';
 import { CSSProperties } from 'react';
 import { generateOpponentSeatPositions } from './generateOpponentPositions';
-
-/**
- * Определение позиций на столе (в процентах для адаптивности)
- */
-export const tablePositions: { top: number; left: number }[] = [
-  { top: 50, left: 40 },
-  { top: 50, left: 50 },
-  { top: 50, left: 60 },
-  { top: 60, left: 40 },
-  { top: 60, left: 50 },
-  { top: 60, left: 60 },
-];
+import { generateSlotsPositions } from './generateSlotsPositions'; // Импортируем новую функцию
 
 /**
  * Возвращает стили (top/left/transform/...) для конкретной карты
@@ -54,7 +43,7 @@ export function getCardStyle(
     }
 
     case 'table':
-      return getTableCardStyle(card.tablePositionIndex || 0);
+      return getTableCardStyle(card.tablePositionIndex || 0, allCards.length);
 
     default:
       return {};
@@ -97,7 +86,7 @@ function getPlayerCardStyle(
   return {
     position: 'absolute',
     bottom: '20%',
-    left: '40%',
+    left: '50%', // Центрируем относительно GameBoard
     transform: `translateX(${
       offsetX + overlap * indexInGroup
     }px) rotate(${rotationAngle}deg)`,
@@ -137,9 +126,13 @@ function getOpponentCardStyle(
   };
 }
 
-// Карты на столе
-function getTableCardStyle(tablePositionIndex: number): CSSProperties {
-  const pos = tablePositions[tablePositionIndex];
+/**
+ * Карты на столе
+ * @param tablePositionIndex Индекс позиции карты на столе
+ * @param totalCards Общее количество карт на столе
+ */
+function getTableCardStyle(tablePositionIndex: number, totalCards: number): CSSProperties {
+  const pos = generateSlotsPositions(totalCards)[tablePositionIndex];
   if (!pos) {
     return {};
   }

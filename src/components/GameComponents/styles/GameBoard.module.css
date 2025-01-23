@@ -78,4 +78,8 @@
     background-color: rgba(0, 100, 0, 0.5); 
     border-radius: 10px;
   }
+
+  .slot {
+   border: 1px dashed rgba(255, 255, 255, 0.5);
+  }
   

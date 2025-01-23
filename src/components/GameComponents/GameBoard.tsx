@@ -7,8 +7,9 @@ import OpponentsContainer from './OpponentsContainer';
 import Player from './Player';
 import TableArea from './TableArea';
 import styles from './styles/GameBoard.module.css';
-import { getCardStyle, tablePositions } from './position/cardPositioning';
+import { getCardStyle } from './position/cardPositioning';
 import gsap from 'gsap';
+import { generateSlotsPositions } from './position/generateSlotsPositions';
 
 interface GameBoardProps {
   /** Общее кол-во игроков за столом (1 - это сам пользователь + (numPlayers - 1) оппонентов). */
@@ -44,6 +45,7 @@ const GameBoard: React.FC<GameBoardProps> = ({ numPlayers }) => {
   const [trumpSuit, setTrumpSuit] = useState<Suit | null>(null);
 
   const flipStateRef = useRef<FlipState | null>(null);
+  const gameBoardRef = useRef<HTMLDivElement>(null); // Изменено: основной реф для GameBoard
   const tableRef = useRef<HTMLDivElement>(null);
   const [tableCardIndices, setTableCardIndices] = useState<number[]>([]); // Индексы карт на столе
   const [revertCardIds, setRevertCardIds] = useState<string[]>([]); // ID карт, которые нужно вернуть
@@ -52,10 +54,11 @@ const GameBoard: React.FC<GameBoardProps> = ({ numPlayers }) => {
   // Создание массива рефов для слотов
   const slotRefs = useRef<React.RefObject<HTMLDivElement>[]>([]);
 
+  // Обновляем позиции слотов при изменении количества карт на столе
   useEffect(() => {
-    // Инициализация рефов для каждого слота
-    slotRefs.current = tablePositions.map(() => React.createRef<HTMLDivElement>());
-  }, []);
+    const newPositions = generateSlotsPositions(tableCardIndices.length);
+    slotRefs.current = newPositions.map(() => React.createRef<HTMLDivElement>());
+  }, [tableCardIndices.length]);
 
   // Генерация колоды при первом рендере
   useEffect(() => {
@@ -122,11 +125,12 @@ const GameBoard: React.FC<GameBoardProps> = ({ numPlayers }) => {
 
   // Функция обработки сброса карты на стол
   const handleCardDrop = (cardId: string, position: { x: number; y: number }) => {
-    if (!tableRef.current) return;
+    if (!gameBoardRef.current || !tableRef.current) return;
 
+    const gameBoardRect = gameBoardRef.current.getBoundingClientRect();
     const tableRect = tableRef.current.getBoundingClientRect();
 
-    // Предполагаемые размеры карты (соответствуют слотам)
+    // Предполагаемые размеры карты (соответствуют слоту)
     const cardWidth = 60; // пикселей
     const cardHeight = 85; // пикселей
 
@@ -146,34 +150,26 @@ const GameBoard: React.FC<GameBoardProps> = ({ numPlayers }) => {
       const cardIndex = cards.findIndex(c => c.id === cardId);
       if (cardIndex === -1) return;
 
-      // Проверить, есть ли свободные позиции на столе
-      if (tableCardIndices.length >= tablePositions.length) {
-        console.log('Нет доступных позиций на столе.');
+      // Проверить, есть ли свободные позиции на столе (максимум 6)
+      if (tableCardIndices.length >= 6) {
+        console.log('Нет доступных позиций на столе (максимум 6 карт).');
         return;
       }
 
       const tablePosIndex = tableCardIndices.length;
 
-      // Получить DOM-элемент слота
-      const slotRefObject = slotRefs.current[tablePosIndex];
-      const slotElement = slotRefObject?.current;
-      if (!slotElement) {
+      // Получить позицию из глобальных tablePositions
+      const pos = generateSlotsPositions(tableCardIndices.length + 1);
+      const targetPos = pos[tablePosIndex];
+
+      if (!targetPos) {
         console.log('Нет доступных слотов на столе.');
         return;
       }
 
-      const slotRect = slotElement.getBoundingClientRect();
-
-      // Рассчитать конечную позицию для анимации относительно родителя `gameBoard`
-      const gameBoardElement = tableRef.current.parentElement;
-      if (!gameBoardElement) {
-        console.log('Нет родительского элемента для `gameBoard`.');
-        return;
-      }
-      const gameBoardRect = gameBoardElement.getBoundingClientRect();
-
-      const relativeTop = slotRect.top - gameBoardRect.top + slotRect.height / 2 - cardHeight / 2;
-      const relativeLeft = slotRect.left - gameBoardRect.left + slotRect.width / 2 - cardWidth / 2;
+      // Рассчитать конечную позицию относительно родителя `gameBoard`
+      const relativeTop = (gameBoardRect.height * targetPos.top / 100) - cardHeight / 2;
+      const relativeLeft = (gameBoardRect.width * targetPos.left / 100) - cardWidth / 2;
 
       console.log(`Placing card ${cardId} at slot index ${tablePosIndex} (left: ${relativeLeft}, top: ${relativeTop})`);
 
@@ -214,11 +210,10 @@ const GameBoard: React.FC<GameBoardProps> = ({ numPlayers }) => {
   const tableCards = cards.filter((c) => c.location === 'table');
 
   return (
-    <div className={styles.gameBoard}>
-      {/* Зона стола */}
+    <div className={styles.gameBoard} ref={gameBoardRef}>
+      {/* Визуальная область стола */}
       <TableArea 
         ref={tableRef}
-        slotRefs={slotRefs.current}
         isActive={isTableActive}
       />
 
@@ -231,6 +226,26 @@ const GameBoard: React.FC<GameBoardProps> = ({ numPlayers }) => {
       {/* Сам игрок (кнопка Start + аватар + кол-во карт) */}
       <Player onStartGame={handleStartGame} cards={playerCards} />
 
+      {/* Слоты для карт на столе */}
+      {generateSlotsPositions(tableCardIndices.length).map((pos, index) => (
+        <div
+          key={index}
+          ref={slotRefs.current[index]}
+          className={styles.slot}
+          style={{
+            position: 'absolute',
+            top: `${pos.top}%`,
+            left: `${pos.left}%`,
+            width: '60px',
+            height: '85px',
+            pointerEvents: 'none', // Чтобы слоты не блокировали события
+            // Можно добавить визуальное обозначение слотов, например:
+            // border: '1px dashed rgba(255, 255, 255, 0.5)',
+            // borderRadius: '8px',
+          }}
+        />
+      ))}
+
       {/* Все карты (единым списком) */}
       {cards.map((card) => {
         const style = getCardStyle(card, cards, numPlayers);
@@ -238,7 +253,7 @@ const GameBoard: React.FC<GameBoardProps> = ({ numPlayers }) => {
           <div 
             key={card.id} 
             style={style} 
-            data-flip-id={card.id} // Assign the unique ID to the outer div
+            data-flip-id={card.id} // Присваиваем уникальный ID внешнему div
           >
             <CardItem 
               card={card} 
