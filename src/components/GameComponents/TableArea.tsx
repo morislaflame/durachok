@@ -1,27 +1,42 @@
 // TableArea.tsx
-import React, { forwardRef } from 'react';
+import React from 'react';
 import styles from './styles/TableArea.module.css';
+import { Card } from '../../types/types';
+import { generateTablePositions } from './position/generateTablePositions';
 
 interface TableAreaProps {
-  /** Флаг, указывающий, активна ли подсветка зоны стола */
   isActive: boolean;
-  children: React.ReactNode;
+  tableCards: Card[];
+  cardRefs: { [key: string]: React.RefObject<HTMLDivElement> };
 }
 
-const TableArea = forwardRef<HTMLDivElement, TableAreaProps>(({ isActive, children }, ref) => {
+const TableArea: React.FC<TableAreaProps> = ({ isActive, tableCards, cardRefs }) => {
+  const positions = generateTablePositions(tableCards.length);
+
   return (
-    <div 
-      ref={ref} 
-      className={`${styles.tableArea} ${isActive ? styles.active : ''}`}
-    >
+    <div className={`${styles.tableArea} ${isActive ? styles.active : ''}`}>
       {/* Визуальное обозначение стола */}
       <div className={styles.tableBackground}></div>
       {/* Контейнер для карт на столе */}
       <div className={styles.tableCardsContainer}>
-        {children}
+        {tableCards.map((card, index) => (
+          <div
+            key={card.id}
+            ref={cardRefs[card.id]}
+            style={{
+              position: 'absolute',
+              left: positions[index].left,
+              top: positions[index].top,
+              transform: 'translate(-50%, -50%)', // Центрирование карты по позиции
+              zIndex: index, // Располагаем карты друг над другом
+            }}
+            data-flip-id={card.id}
+          >
+          </div>
+        ))}
       </div>
     </div>
   );
-});
+};
 
 export default TableArea;

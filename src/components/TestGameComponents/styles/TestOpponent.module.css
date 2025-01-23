@@ -1,0 +1,10 @@
+.testOpponent {
+    position: absolute;
+    top: 120px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 10px;
+    /* Добавляем флип-анимацию */
+    perspective: 1000px;
+}

@@ -8,6 +8,10 @@ import Player from './Player';
 import TableArea from './TableArea';
 import styles from './styles/GameBoard.module.css';
 import { getCardStyle } from './position/cardPositioning';
+import gsap from 'gsap';
+import Flip from 'gsap/Flip';
+
+gsap.registerPlugin(Flip);
 
 interface GameBoardProps {
   /** Общее кол-во игроков за столом (1 - это сам пользователь + (numPlayers - 1) оппонентов). */
@@ -45,7 +49,6 @@ const GameBoard: React.FC<GameBoardProps> = ({ numPlayers }) => {
   const flipStateRef = useRef<FlipState | null>(null);
   const gameBoardRef = useRef<HTMLDivElement>(null); // Основной реф для GameBoard
   const tableRef = useRef<HTMLDivElement>(null);
-  const [tableCards, setTableCards] = useState<Card[]>([]); // Список карт на столе
   const [revertCardIds, setRevertCardIds] = useState<string[]>([]); // ID карт, которые нужно вернуть
   const [isTableActive, setIsTableActive] = useState<boolean>(false); // Для подсветки
 
@@ -138,13 +141,6 @@ const GameBoard: React.FC<GameBoardProps> = ({ numPlayers }) => {
       const cardIndex = cards.findIndex(c => c.id === cardId);
       if (cardIndex === -1) return;
 
-      // Проверить, есть ли свободные позиции на столе (максимум 6)
-      if (tableCards.length >= 6) {
-        console.log('Нет доступных позиций на столе (максимум 6 карт).');
-        return;
-      }
-
-
       // Обновить карту: изменить location на 'table'
       setCards(prevCards => {
         const updatedCards = [...prevCards];
@@ -152,9 +148,6 @@ const GameBoard: React.FC<GameBoardProps> = ({ numPlayers }) => {
         updatedCards[cardIndex].seatIndex = undefined;
         return updatedCards;
       });
-
-      // Добавить карту в список карт на столе
-      setTableCards(prev => [...prev, cards[cardIndex]]);
 
       console.log(`Card ${cardId} placed on table.`);
     } else {
@@ -164,55 +157,53 @@ const GameBoard: React.FC<GameBoardProps> = ({ numPlayers }) => {
     }
   };
 
+  // Создаём рефы для каждой карты
+  const cardRefMap = useRef<{ [key: string]: HTMLDivElement | null }>({});
+
+  // Рефы для карт на столе
+  const tableCardRefs = useRef<{ [key: string]: React.RefObject<HTMLDivElement> }>({});
+
+      // Состояние для всех карт не на столе
+  const nonTableCards = cards.filter(c => c.location !== 'table');
+
+  // Фильтрация карт по локации
   const playerCards = cards.filter((c) => c.location === 'player');
   const opponentCards = cards.filter((c) => c.location === 'opponent');
+  const tableCards = cards.filter((c) => c.location === 'table');
 
   return (
-    <div className={styles.gameBoard} ref={gameBoardRef}>
+    <div className={`gameBoardRef ${styles.gameBoard}`} ref={gameBoardRef}>
       {/* Визуальная область стола */}
-      <TableArea  
-        ref={tableRef}
-        isActive={isTableActive}
-      >
-        {/* Все карты на столе */}
-        {tableCards.map((card) => (
-          <div 
-            key={card.id} 
-            style={{ position: 'relative' }} // Удаляем абсолютное позиционирование
-            data-flip-id={card.id} // Присваиваем уникальный ID внешнему div
-          >
-            <CardItem 
-              card={card} 
-              trumpSuit={trumpSuit} 
-              onCardDrop={handleCardDrop}
-              shouldRevert={revertCardIds.includes(card.id)}
-              onRevertComplete={() => setRevertCardIds(prev => prev.filter(id => id !== card.id))}
-            />
-          </div>
-        ))}
-      </TableArea>
+      <div ref={tableRef}>
+        <TableArea
+          isActive={isTableActive}
+          tableCards={tableCards}
+          cardRefs={tableCardRefs.current}
+        />
+      </div>
 
       {/* Все оппоненты (аватар + счётчик) */}
-      <OpponentsContainer 
+      <OpponentsContainer
         numPlayers={numPlayers}
-        allOpponentCards={opponentCards} 
+        allOpponentCards={opponentCards}
       />
 
       {/* Сам игрок (кнопка Start + аватар + кол-во карт) */}
       <Player onStartGame={handleStartGame} cards={playerCards} />
 
       {/* Все карты в руках и колоде */}
-      {cards.filter(c => c.location !== 'table').map((card) => {
+      {nonTableCards.map((card) => {
         const style = getCardStyle(card, cards, numPlayers);
         return (
-          <div 
-            key={card.id} 
-            style={style} 
+          <div
+            key={card.id}
+            ref={(el) => { cardRefMap.current[card.id] = el; }}
+            style={style}
             data-flip-id={card.id} // Присваиваем уникальный ID внешнему div
           >
-            <CardItem 
-              card={card} 
-              trumpSuit={trumpSuit} 
+            <CardItem
+              card={card}
+              trumpSuit={trumpSuit}
               onCardDrop={handleCardDrop}
               shouldRevert={revertCardIds.includes(card.id)}
               onRevertComplete={() => setRevertCardIds(prev => prev.filter(id => id !== card.id))}

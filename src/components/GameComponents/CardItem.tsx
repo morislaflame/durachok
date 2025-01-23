@@ -10,7 +10,7 @@ gsap.registerPlugin(Draggable);
 
 interface CardItemProps {
   card: Card;
-  trumpSuit?: Suit | null; 
+  trumpSuit?: Suit | null;
   onClick?: () => void;
   onCardDrop?: (cardId: string, position: { x: number; y: number }) => void;
   shouldRevert?: boolean; // Новый пропс для указания, нужно ли вернуть карту
@@ -19,8 +19,6 @@ interface CardItemProps {
 
 const CardItem: React.FC<CardItemProps> = ({ card, onClick, onCardDrop, shouldRevert, onRevertComplete }) => {
   const cardRef = useRef<HTMLDivElement>(null);
-
-
 
   useEffect(() => {
     if (card.location !== 'player') return;
@@ -63,8 +61,8 @@ const CardItem: React.FC<CardItemProps> = ({ card, onClick, onCardDrop, shouldRe
     }
   }, [shouldRevert, card.location, onRevertComplete]);
 
-  const isFaceUp = 
-    card.location === 'player' || 
+  const isFaceUp =
+    card.location === 'player' ||
     card.location === 'trump' ||
     card.location === 'table'; // Показываем лицо, если на столе
 

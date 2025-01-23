@@ -1,28 +1,45 @@
 import React from 'react';
-import { Rank, Suit } from '../../types/types';
-import styles from './styles/TestBoard.module.css';
+import { Card } from '../../types/types';
+import { useSpring, animated } from 'react-spring';
+import styles from './styles/TestCard.module.css';
 
-interface TestCard {
-    id: string;
-    rank: Rank;
-    suit: Suit;
+interface TestCardProps {
+  card: Card;
+  style?: React.CSSProperties;
 }
 
-const TestCard = () => {
+const TestCard: React.FC<TestCardProps> = ({ card, style }) => {
+  // Определяем целевые позиции в зависимости от местоположения карты
+  const getTargetPosition = (): { x: number; y: number } => {
+    switch (card.location) {
+      case 'player':
+        return { x: 0, y: -100 }; // Примерное смещение для игрока
+      case 'opponent':
+        return { x: 0, y: -0 }; // Примерное смещение для оппонента
+      default:
+        return { x: 0, y: 0 };
+    }
+  };
 
-    const testCard: TestCard = {
-        id: '1',
-        rank: '6',
-        suit: 'hearts',
-    };
+  const targetPosition = getTargetPosition();
+
+  const props = useSpring({
+    to: { opacity: 1, transform: `translate(${targetPosition.x}px, ${targetPosition.y}px) scale(1)` },
+    from: { opacity: 0, transform: 'translate(0px, 0px) scale(0.5)' },
+    config: { tension: 300, friction: 20 },
+  });
 
   return (
-    <div className={`testCard ${styles.testCard}`}>
-      <div className={styles.testCardFront}>
-        <div className={styles.testCardSuit}>{testCard.suit}</div>
-        <div className={styles.testCardRank}>{testCard.rank}</div>
+    <animated.div
+      className={`card ${styles.card}`}
+      data-id={card.id}
+      style={{ ...style, ...props }}
+    >
+      <div className={styles.cardFront}>
+        <div className={styles.cardSuit}>{card.suit}</div>
+        <div className={styles.cardRank}>{card.rank}</div>
       </div>
-    </div>
+    </animated.div>
   );
 };
 

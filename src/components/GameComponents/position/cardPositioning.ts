@@ -2,6 +2,7 @@
 import { Card } from '../../../types/types';
 import { CSSProperties } from 'react';
 import { generateOpponentSeatPositions } from './generateOpponentPositions';
+import { generateTablePositions } from './generateTablePositions';
 
 export function getCardStyle(
   card: Card,
@@ -38,7 +39,7 @@ export function getCardStyle(
 
     case 'table':
       // Для карт на столе используем flex-контейнер, поэтому не применяем абсолютное позиционирование
-      return getTableCardStyle();
+      return getTableCardStyle(indexInGroup, sameLocationCards.length);
 
     default:
       return {};
@@ -122,12 +123,15 @@ function getOpponentCardStyle(
 }
 
 // Карты на столе
-function getTableCardStyle(): CSSProperties {
-  // Для карт на столе не требуется дополнительное позиционирование, так как они находятся в flex-контейнере
-  return {
-    /* Можно добавить общие стили для карт на столе, если необходимо */
-    /* Например: */
-    // margin: '0 5px',
-    // transition: 'transform 0.3s',
-  };
-}
+function getTableCardStyle(indexInGroup: number, totalCards: number): CSSProperties {
+    const positions = generateTablePositions(totalCards);
+    const position = positions[indexInGroup];
+  
+    return {
+      position: 'absolute',
+      left: position.left,
+      top: position.top,
+      transform: 'translate(-50%, -50%)',
+      zIndex: 10 + indexInGroup,
+    };
+  }
