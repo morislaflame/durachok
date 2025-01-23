@@ -2,13 +2,7 @@
 import { Card } from '../../../types/types';
 import { CSSProperties } from 'react';
 import { generateOpponentSeatPositions } from './generateOpponentPositions';
-import { generateSlotsPositions } from './generateSlotsPositions'; // Импортируем новую функцию
 
-/**
- * Возвращает стили (top/left/transform/...) для конкретной карты
- * в зависимости от её location (deck/trump/player/opponent/table)
- * и, если нужно, учитывая seatIndex (какой именно оппонент).
- */
 export function getCardStyle(
   card: Card,
   allCards: Card[],
@@ -43,7 +37,8 @@ export function getCardStyle(
     }
 
     case 'table':
-      return getTableCardStyle(card.tablePositionIndex || 0, allCards.length);
+      // Для карт на столе используем flex-контейнер, поэтому не применяем абсолютное позиционирование
+      return getTableCardStyle();
 
     default:
       return {};
@@ -67,8 +62,8 @@ function getDeckCardStyle(indexInGroup: number): CSSProperties {
 function getTrumpCardStyle(): CSSProperties {
   return {
     position: 'absolute',
-    top: '21%',
-    left: '35px',
+    top: '15%',
+    left: '-20px',
     transform: 'translate(25px, 30px) rotate(110deg)',
     zIndex: 900,
   };
@@ -85,8 +80,8 @@ function getPlayerCardStyle(
 
   return {
     position: 'absolute',
-    bottom: '20%',
-    left: '50%', // Центрируем относительно GameBoard
+    bottom: '5%',
+    left: '45%', // Центрируем относительно GameBoard
     transform: `translateX(${
       offsetX + overlap * indexInGroup
     }px) rotate(${rotationAngle}deg)`,
@@ -126,22 +121,13 @@ function getOpponentCardStyle(
   };
 }
 
-/**
- * Карты на столе
- * @param tablePositionIndex Индекс позиции карты на столе
- * @param totalCards Общее количество карт на столе
- */
-function getTableCardStyle(tablePositionIndex: number, totalCards: number): CSSProperties {
-  const pos = generateSlotsPositions(totalCards)[tablePositionIndex];
-  if (!pos) {
-    return {};
-  }
-
+// Карты на столе
+function getTableCardStyle(): CSSProperties {
+  // Для карт на столе не требуется дополнительное позиционирование, так как они находятся в flex-контейнере
   return {
-    position: 'absolute',
-    top: `${pos.top}%`,
-    left: `${pos.left}%`,
-    transform: 'translate(-50%, -50%)',
-    zIndex: 500 + tablePositionIndex, // для отображения поверх других элементов
+    /* Можно добавить общие стили для карт на столе, если необходимо */
+    /* Например: */
+    // margin: '0 5px',
+    // transition: 'transform 0.3s',
   };
 }

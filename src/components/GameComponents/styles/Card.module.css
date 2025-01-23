@@ -5,7 +5,7 @@
     border-radius: 8px;
     display: flex;
     justify-content: space-between;
-    padding: 10px;
+    padding: 5px;
     cursor: pointer;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
     position: relative;
@@ -14,6 +14,7 @@
 .playerCard {
     width: 60px;
     height: 85px;
+    padding: 10px;
 }
 
 .tableCard {

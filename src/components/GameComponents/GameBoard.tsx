@@ -9,7 +9,6 @@ import TableArea from './TableArea';
 import styles from './styles/GameBoard.module.css';
 import { getCardStyle } from './position/cardPositioning';
 import gsap from 'gsap';
-import { generateSlotsPositions } from './position/generateSlotsPositions';
 
 interface GameBoardProps {
   /** Общее кол-во игроков за столом (1 - это сам пользователь + (numPlayers - 1) оппонентов). */
@@ -45,20 +44,11 @@ const GameBoard: React.FC<GameBoardProps> = ({ numPlayers }) => {
   const [trumpSuit, setTrumpSuit] = useState<Suit | null>(null);
 
   const flipStateRef = useRef<FlipState | null>(null);
-  const gameBoardRef = useRef<HTMLDivElement>(null); // Изменено: основной реф для GameBoard
+  const gameBoardRef = useRef<HTMLDivElement>(null); // Основной реф для GameBoard
   const tableRef = useRef<HTMLDivElement>(null);
-  const [tableCardIndices, setTableCardIndices] = useState<number[]>([]); // Индексы карт на столе
+  const [tableCards, setTableCards] = useState<Card[]>([]); // Список карт на столе
   const [revertCardIds, setRevertCardIds] = useState<string[]>([]); // ID карт, которые нужно вернуть
   const [isTableActive, setIsTableActive] = useState<boolean>(false); // Для подсветки
-
-  // Создание массива рефов для слотов
-  const slotRefs = useRef<React.RefObject<HTMLDivElement>[]>([]);
-
-  // Обновляем позиции слотов при изменении количества карт на столе
-  useEffect(() => {
-    const newPositions = generateSlotsPositions(tableCardIndices.length);
-    slotRefs.current = newPositions.map(() => React.createRef<HTMLDivElement>());
-  }, [tableCardIndices.length]);
 
   // Генерация колоды при первом рендере
   useEffect(() => {
@@ -151,53 +141,48 @@ const GameBoard: React.FC<GameBoardProps> = ({ numPlayers }) => {
       if (cardIndex === -1) return;
 
       // Проверить, есть ли свободные позиции на столе (максимум 6)
-      if (tableCardIndices.length >= 6) {
+      if (tableCards.length >= 6) {
         console.log('Нет доступных позиций на столе (максимум 6 карт).');
         return;
       }
 
-      const tablePosIndex = tableCardIndices.length;
+      const card = cards[cardIndex];
 
-      // Получить позицию из глобальных tablePositions
-      const pos = generateSlotsPositions(tableCardIndices.length + 1);
-      const targetPos = pos[tablePosIndex];
+      // Обновить карту: изменить location на 'table'
+      setCards(prevCards => {
+        const updatedCards = [...prevCards];
+        updatedCards[cardIndex].location = 'table';
+        updatedCards[cardIndex].seatIndex = undefined;
+        return updatedCards;
+      });
 
-      if (!targetPos) {
-        console.log('Нет доступных слотов на столе.');
-        return;
-      }
+      // Добавить карту в список карт на столе
+      setTableCards(prev => [...prev, cards[cardIndex]]);
 
-      // Рассчитать конечную позицию относительно родителя `gameBoard`
-      const relativeTop = (gameBoardRect.height * targetPos.top / 100) - cardHeight / 2;
-      const relativeLeft = (gameBoardRect.width * targetPos.left / 100) - cardWidth / 2;
-
-      console.log(`Placing card ${cardId} at slot index ${tablePosIndex} (left: ${relativeLeft}, top: ${relativeTop})`);
-
-      // Найти DOM-элемент карты (outer div)
+      // Анимировать карту к контейнеру tableCardsContainer
       const element = document.querySelector(`[data-flip-id="${cardId}"]`) as HTMLElement;
-      if (element) {
-        // Анимировать карту к слоту
+      const tableContainer = tableRef.current?.querySelector('.tableCardsContainer') as HTMLElement;
+
+      if (element && tableContainer) {
+        const tableRect = tableContainer.getBoundingClientRect();
+        const cardRect = element.getBoundingClientRect();
+
+        const deltaX = tableRect.left + tableRect.width / 2 - (cardRect.left + cardRect.width / 2);
+        const deltaY = tableRect.top + tableRect.height / 2 - (cardRect.top + cardRect.height / 2);
+
         gsap.to(element, {
-          top: relativeTop,
-          left: relativeLeft,
+          x: deltaX,
+          y: deltaY,
           duration: 0.5,
           ease: "power2.out",
           onComplete: () => {
-            // Обновить карту: изменить location на 'table' и установить tablePositionIndex
-            setCards(prevCards => {
-              const updatedCards = [...prevCards];
-              updatedCards[cardIndex].location = 'table';
-              updatedCards[cardIndex].tablePositionIndex = tablePosIndex;
-              return updatedCards;
-            });
-
-            // Добавить индекс карты в массив tableCardIndices
-            setTableCardIndices(prev => [...prev, cardIndex]);
-
-            console.log(`Card ${cardId} placed on table slot ${tablePosIndex}`);
+            // Сбросить трансформации
+            gsap.set(element, { x: 0, y: 0 });
           }
         });
       }
+
+      console.log(`Card ${cardId} placed on table.`);
     } else {
       // Не было размещения на столе, нужно вернуть карту обратно
       console.log(`Card ${cardId} not placed on table. Reverting.`);
@@ -207,7 +192,7 @@ const GameBoard: React.FC<GameBoardProps> = ({ numPlayers }) => {
 
   const playerCards = cards.filter((c) => c.location === 'player');
   const opponentCards = cards.filter((c) => c.location === 'opponent');
-  const tableCards = cards.filter((c) => c.location === 'table');
+  // const tableCards = cards.filter((c) => c.location === 'table'); // Теперь используем отдельное состояние
 
   return (
     <div className={styles.gameBoard} ref={gameBoardRef}>
@@ -215,7 +200,24 @@ const GameBoard: React.FC<GameBoardProps> = ({ numPlayers }) => {
       <TableArea 
         ref={tableRef}
         isActive={isTableActive}
-      />
+      >
+        {/* Все карты на столе */}
+        {tableCards.map((card) => (
+          <div 
+            key={card.id} 
+            style={{ position: 'relative' }} // Удаляем абсолютное позиционирование
+            data-flip-id={card.id} // Присваиваем уникальный ID внешнему div
+          >
+            <CardItem 
+              card={card} 
+              trumpSuit={trumpSuit} 
+              onCardDrop={handleCardDrop}
+              shouldRevert={revertCardIds.includes(card.id)}
+              onRevertComplete={() => setRevertCardIds(prev => prev.filter(id => id !== card.id))}
+            />
+          </div>
+        ))}
+      </TableArea>
 
       {/* Все оппоненты (аватар + счётчик) */}
       <OpponentsContainer 
@@ -226,28 +228,8 @@ const GameBoard: React.FC<GameBoardProps> = ({ numPlayers }) => {
       {/* Сам игрок (кнопка Start + аватар + кол-во карт) */}
       <Player onStartGame={handleStartGame} cards={playerCards} />
 
-      {/* Слоты для карт на столе */}
-      {generateSlotsPositions(tableCardIndices.length).map((pos, index) => (
-        <div
-          key={index}
-          ref={slotRefs.current[index]}
-          className={styles.slot}
-          style={{
-            position: 'absolute',
-            top: `${pos.top}%`,
-            left: `${pos.left}%`,
-            width: '60px',
-            height: '85px',
-            pointerEvents: 'none', // Чтобы слоты не блокировали события
-            // Можно добавить визуальное обозначение слотов, например:
-            // border: '1px dashed rgba(255, 255, 255, 0.5)',
-            // borderRadius: '8px',
-          }}
-        />
-      ))}
-
-      {/* Все карты (единым списком) */}
-      {cards.map((card) => {
+      {/* Все карты в руках и колоде */}
+      {cards.filter(c => c.location !== 'table').map((card) => {
         const style = getCardStyle(card, cards, numPlayers);
         return (
           <div 
