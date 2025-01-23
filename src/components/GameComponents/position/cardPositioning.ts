@@ -13,10 +13,6 @@ export const tablePositions: { top: number; left: number }[] = [
   { top: 60, left: 40 },
   { top: 60, left: 50 },
   { top: 60, left: 60 },
-  { top: 70, left: 40 },
-  { top: 70, left: 50 },
-  { top: 70, left: 60 },
-  // Добавьте больше позиций по необходимости
 ];
 
 /**

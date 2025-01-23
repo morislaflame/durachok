@@ -1,0 +1,42 @@
+/* TableArea.module.css */
+
+.tableArea {
+    position: absolute;
+    top: 30%;
+    left: 30%;
+    width: 40%;
+    height: 40%;
+    border: 2px dashed #ccc; /* Визуальное обозначение зоны стола */
+    border-radius: 10px;
+    background-color: rgba(0, 100, 0, 0.3); /* Полупрозрачный зеленый фон */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    transition: background-color 0.3s, border-color 0.3s;
+  }
+  
+  .tableArea.active {
+    background-color: rgba(0, 150, 0, 0.5); /* Более насыщенный зеленый при активном состоянии */
+    border-color: #0f0; /* Изменение цвета рамки */
+  }
+  
+  .tableBackground {
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 100, 0, 0.5); /* Более насыщенный зеленый */
+    border-radius: 10px;
+    position: absolute;
+    top: 0;
+    left: 0;
+  }
+  
+  .slot {
+    position: absolute;
+    width: 60px;
+    height: 85px;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-radius: 5px;
+    background-color: rgba(255, 255, 255, 0.1);
+    pointer-events: none; /* Чтобы слоты не мешали перетаскиванию */
+  }
+  
