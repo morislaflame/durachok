@@ -5,6 +5,7 @@ import styles from './styles/TableArea.module.css';
 interface TableAreaProps {
   /** Флаг, указывающий, активна ли подсветка зоны стола */
   isActive: boolean;
+  children: React.ReactNode;
 }
 
 const TableArea = forwardRef<HTMLDivElement, TableAreaProps>(({ isActive, children }, ref) => {

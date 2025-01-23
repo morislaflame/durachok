@@ -1,0 +1,4 @@
+.testCard .bottomCard {
+  z-index: 1000;
+  transform: rotate(20deg);
+}

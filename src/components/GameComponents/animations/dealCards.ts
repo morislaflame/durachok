@@ -15,7 +15,6 @@ export function captureFlipState(): FlipState {
 export function animateFlip(oldState: FlipState, onComplete?: () => void) {
   Flip.from(oldState, {
     duration: 0.9,
-    scale: true,
     absolute: true,
     stagger: 0.05,
     ease: 'power3.out',

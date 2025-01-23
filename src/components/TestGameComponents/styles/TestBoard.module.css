@@ -1,0 +1,54 @@
+.testBoard {
+    width: 100%;
+    height: 100vh;
+    background-color: black;
+    position: relative;
+}
+
+.testTop {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+    padding: 10px;
+    background-color: red;
+    height: 100px;
+    position: relative;
+}
+
+.testCard {
+    position: absolute;
+    width: 60px;
+    height: 80px;
+    background-color: white;
+    border: 1px solid black;
+    border-radius: 10px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+.testCardSuit {
+    font-size: 8px;
+    font-weight: bold;
+    color: black;
+}
+
+.testCardRank {
+    font-size: 8px;
+    font-weight: bold;
+    color: black;
+}
+
+.testBottom {
+    position: absolute;
+    bottom: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+    height: 100px;
+    padding: 10px;
+    background-color: blue;
+}

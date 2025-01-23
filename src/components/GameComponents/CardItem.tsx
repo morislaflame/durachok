@@ -20,6 +20,8 @@ interface CardItemProps {
 const CardItem: React.FC<CardItemProps> = ({ card, onClick, onCardDrop, shouldRevert, onRevertComplete }) => {
   const cardRef = useRef<HTMLDivElement>(null);
 
+
+
   useEffect(() => {
     if (card.location !== 'player') return;
 
@@ -38,8 +40,6 @@ const CardItem: React.FC<CardItemProps> = ({ card, onClick, onCardDrop, shouldRe
     })[0];
 
     return () => {
-      // Сбросить любые трансформации, установленные Draggable
-    //   gsap.set(element, { x: 0, y: 0 });
       draggable.kill();
     };
   }, [card.location, onCardDrop, card.id]);

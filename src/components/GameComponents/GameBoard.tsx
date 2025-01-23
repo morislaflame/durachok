@@ -8,7 +8,6 @@ import Player from './Player';
 import TableArea from './TableArea';
 import styles from './styles/GameBoard.module.css';
 import { getCardStyle } from './position/cardPositioning';
-import gsap from 'gsap';
 
 interface GameBoardProps {
   /** Общее кол-во игроков за столом (1 - это сам пользователь + (numPlayers - 1) оппонентов). */
@@ -117,7 +116,6 @@ const GameBoard: React.FC<GameBoardProps> = ({ numPlayers }) => {
   const handleCardDrop = (cardId: string, position: { x: number; y: number }) => {
     if (!gameBoardRef.current || !tableRef.current) return;
 
-    const gameBoardRect = gameBoardRef.current.getBoundingClientRect();
     const tableRect = tableRef.current.getBoundingClientRect();
 
     // Предполагаемые размеры карты (соответствуют слоту)
@@ -146,7 +144,6 @@ const GameBoard: React.FC<GameBoardProps> = ({ numPlayers }) => {
         return;
       }
 
-      const card = cards[cardIndex];
 
       // Обновить карту: изменить location на 'table'
       setCards(prevCards => {
@@ -159,29 +156,6 @@ const GameBoard: React.FC<GameBoardProps> = ({ numPlayers }) => {
       // Добавить карту в список карт на столе
       setTableCards(prev => [...prev, cards[cardIndex]]);
 
-      // Анимировать карту к контейнеру tableCardsContainer
-      const element = document.querySelector(`[data-flip-id="${cardId}"]`) as HTMLElement;
-      const tableContainer = tableRef.current?.querySelector('.tableCardsContainer') as HTMLElement;
-
-      if (element && tableContainer) {
-        const tableRect = tableContainer.getBoundingClientRect();
-        const cardRect = element.getBoundingClientRect();
-
-        const deltaX = tableRect.left + tableRect.width / 2 - (cardRect.left + cardRect.width / 2);
-        const deltaY = tableRect.top + tableRect.height / 2 - (cardRect.top + cardRect.height / 2);
-
-        gsap.to(element, {
-          x: deltaX,
-          y: deltaY,
-          duration: 0.5,
-          ease: "power2.out",
-          onComplete: () => {
-            // Сбросить трансформации
-            gsap.set(element, { x: 0, y: 0 });
-          }
-        });
-      }
-
       console.log(`Card ${cardId} placed on table.`);
     } else {
       // Не было размещения на столе, нужно вернуть карту обратно
@@ -192,12 +166,11 @@ const GameBoard: React.FC<GameBoardProps> = ({ numPlayers }) => {
 
   const playerCards = cards.filter((c) => c.location === 'player');
   const opponentCards = cards.filter((c) => c.location === 'opponent');
-  // const tableCards = cards.filter((c) => c.location === 'table'); // Теперь используем отдельное состояние
 
   return (
     <div className={styles.gameBoard} ref={gameBoardRef}>
       {/* Визуальная область стола */}
-      <TableArea 
+      <TableArea  
         ref={tableRef}
         isActive={isTableActive}
       >
