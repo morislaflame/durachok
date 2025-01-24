@@ -54,19 +54,15 @@ const GameBoard: React.FC<GameBoardProps> = ({ numPlayers }) => {
   // Создание массива рефов для слотов
   const slotRefs = useRef<React.RefObject<HTMLDivElement>[]>([]);
 
-  // Обновляем позиции слотов при изменении количества карт на столе
-  useEffect(() => {
-    if (tableCardIndices.length > 0) {
-      const newPositions = generateSlotsPositions(tableCardIndices.length);
-      slotRefs.current = newPositions.map(() => React.createRef<HTMLDivElement>());
-      console.log('Updated slot positions:', newPositions);
-    }
-  }, [tableCardIndices.length]);
+  // Новые состояния для управления слотами при перетаскивании
+  const [isDragging, setIsDragging] = useState<boolean>(false);
+  const [dragSlotPositions, setDragSlotPositions] = useState<{ top: number; left: number }[]>([]);
 
   // Генерация колоды при первом рендере
   useEffect(() => {
     const initialDeck = createAllDeck();
     setCards(initialDeck);
+    console.log('Initial deck created:', initialDeck);
   }, []);
 
   // Анимация Flip при изменении состояния карт
@@ -74,12 +70,14 @@ const GameBoard: React.FC<GameBoardProps> = ({ numPlayers }) => {
     if (flipStateRef.current) {
       animateFlip(flipStateRef.current, () => {
         flipStateRef.current = null;
+        console.log('Flip animation completed');
       });
     }
   }, [cards]);
 
   // Функция раздачи карт
   const handleStartGame = () => {
+    console.log('Game started');
     flipStateRef.current = captureFlipState();
 
     setCards((prev) => {
@@ -90,6 +88,7 @@ const GameBoard: React.FC<GameBoardProps> = ({ numPlayers }) => {
       const trumpCard = updated[lastIndex];
       trumpCard.location = 'trump';  // карта-козырь
       setTrumpSuit(trumpCard.suit);
+      console.log(`Trump card set: ${trumpCard.id}, Suit: ${trumpCard.suit}`);
 
       let deckPos = 0;
       const maxCardsForDeal = lastIndex; // оставили 1 карту под козырь
@@ -99,11 +98,13 @@ const GameBoard: React.FC<GameBoardProps> = ({ numPlayers }) => {
       const giveCardToPlayer = (i: number) => {
         updated[i].location = 'player';
         updated[i].seatIndex = undefined;
+        console.log(`Card ${updated[i].id} given to player`);
       };
       // Функция "отдать карту конкретному оппоненту seatIndex"
       const giveCardToOpponent = (i: number, seat: number) => {
         updated[i].location = 'opponent';
         updated[i].seatIndex = seat;
+        console.log(`Card ${updated[i].id} given to opponent seat ${seat}`);
       };
 
       const cardsPerPlayer = 6;
@@ -122,13 +123,19 @@ const GameBoard: React.FC<GameBoardProps> = ({ numPlayers }) => {
         }
       }
 
+      console.log('Cards after dealing:', updated);
       return updated;
     });
   };
 
   // Функция обработки сброса карты на стол
   const handleCardDrop = (cardId: string, position: { x: number; y: number }) => {
-    if (!gameBoardRef.current || !tableRef.current) return;
+    console.log(`handleCardDrop called for card ${cardId} at position:`, position);
+
+    if (!gameBoardRef.current || !tableRef.current) {
+      console.error('GameBoard or Table reference is missing');
+      return;
+    }
 
     const gameBoardRect = gameBoardRef.current.getBoundingClientRect();
     const tableRect = tableRef.current.getBoundingClientRect();
@@ -144,29 +151,32 @@ const GameBoard: React.FC<GameBoardProps> = ({ numPlayers }) => {
       position.y < tableRect.bottom
     );
 
-    console.log(`Card ${cardId} dropped at position:`, position);
+    console.log(`Card ${cardId} dropped over table:`, isOverTable);
 
     setIsTableActive(isOverTable);
 
     if (isOverTable) {
       // Найти карту по ID
       const cardIndex = cards.findIndex(c => c.id === cardId);
-      if (cardIndex === -1) return;
+      if (cardIndex === -1) {
+        console.error(`Card with ID ${cardId} not found`);
+        return;
+      }
 
       // Проверить, есть ли свободные позиции на столе (максимум 6)
       if (tableCardIndices.length >= 6) {
-        console.log('Нет доступных позиций на столе (максимум 6 карт).');
+        console.warn('Нет доступных позиций на столе (максимум 6 карт).');
         return;
       }
 
       const tablePosIndex = tableCardIndices.length;
 
       // Получить позицию из глобальных tablePositions
-      const pos = generateSlotsPositions(tableCardIndices.length + 1);
+      const pos = generateSlotsPositions(tablePosIndex + 1);
       const targetPos = pos[tablePosIndex];
 
       if (!targetPos) {
-        console.log('Нет доступных слотов на столе.');
+        console.error('Нет доступных слотов на столе.');
         return;
       }
 
@@ -188,26 +198,67 @@ const GameBoard: React.FC<GameBoardProps> = ({ numPlayers }) => {
           duration: 0.5,
           ease: "power2.out",
           onComplete: () => {
+            console.log(`Animation completed for card ${cardId}`);
             // Обновить карту: изменить location на 'table' и установить tablePositionIndex
             setCards(prevCards => {
               const updatedCards = [...prevCards];
               updatedCards[cardIndex].location = 'table';
               updatedCards[cardIndex].tablePositionIndex = tablePosIndex;
+              console.log(`Card ${cardId} location updated to table at position index ${tablePosIndex}`);
               return updatedCards;
             });
-  
+
             // Добавить индекс карты в массив tableCardIndices
             setTableCardIndices(prev => [...prev, cardIndex]);
-  
+
             console.log(`Card ${cardId} placed on table slot ${tablePosIndex}`);
+
+            // Завершение перетаскивания
+            handleDragEnd(true);
           }
         });
+      } else {
+        console.error(`Element for card ${cardId} not found`);
+        handleDragEnd(false);
       }
     } else {
       // Не было размещения на столе, нужно вернуть карту обратно
       console.log(`Card ${cardId} not placed on table. Reverting.`);
       setRevertCardIds(prev => [...prev, cardId]);
+
+      // Завершение перетаскивания
+      handleDragEnd(false);
     }
+  };
+
+  // Функция обработки начала перетаскивания
+  const handleDragStart = () => {
+    console.log('Drag started');
+    if (isDragging) {
+      console.warn('A drag is already in progress');
+      return;
+    }
+    setIsDragging(true);
+    const newPositions = generateSlotsPositions(tableCardIndices.length + 1);
+    setDragSlotPositions(newPositions);
+    slotRefs.current = newPositions.map(() => React.createRef<HTMLDivElement>());
+    console.log('Generated slots on drag start:', newPositions);
+  };
+
+  // Функция обработки окончания перетаскивания
+  const handleDragEnd = (droppedOnTable: boolean) => {
+    console.log('Drag ended. Dropped on table:', droppedOnTable);
+    if (droppedOnTable) {
+      // Если карта была размещена на столе, обновляем позиции слотов для следующего возможного размещения
+      const updatedPositions = generateSlotsPositions(tableCardIndices.length);
+      setDragSlotPositions(updatedPositions);
+      console.log('Slots updated after placing card on table:', updatedPositions);
+    } else {
+      // Если карта не была размещена на столе, удаляем временные слоты
+      setDragSlotPositions([]);
+      console.log('Slots removed because card was not dropped on table');
+    }
+    setIsDragging(false);
   };
 
   const playerCards = cards.filter((c) => c.location === 'player');
@@ -231,7 +282,7 @@ const GameBoard: React.FC<GameBoardProps> = ({ numPlayers }) => {
       <Player onStartGame={handleStartGame} cards={playerCards} />
 
       {/* Слоты для карт на столе */}
-      {generateSlotsPositions(tableCardIndices.length).map((pos, index) => (
+      { (isDragging ? dragSlotPositions : generateSlotsPositions(tableCardIndices.length)).map((pos, index) => (
         <div
           key={index}
           ref={slotRefs.current[index]}
@@ -243,6 +294,8 @@ const GameBoard: React.FC<GameBoardProps> = ({ numPlayers }) => {
             width: '50px',
             height: '70px',
             pointerEvents: 'none', // Чтобы слоты не блокировали события
+            backgroundColor: 'rgba(0, 255, 0, 0.2)', // Добавлено для визуализации слотов
+            border: '1px dashed green', // Добавлено для визуализации слотов
           }}
         />
       ))}
@@ -262,6 +315,7 @@ const GameBoard: React.FC<GameBoardProps> = ({ numPlayers }) => {
               onCardDrop={handleCardDrop}
               shouldRevert={revertCardIds.includes(card.id)}
               onRevertComplete={() => setRevertCardIds(prev => prev.filter(id => id !== card.id))}
+              onDragStart={handleDragStart} // Передаём обработчик начала перетаскивания
             />
           </div>
         );

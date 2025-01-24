@@ -15,20 +15,31 @@ interface CardItemProps {
   onCardDrop?: (cardId: string, position: { x: number; y: number }) => void;
   shouldRevert?: boolean; // Новый пропс для указания, нужно ли вернуть карту
   onRevertComplete?: () => void; // Новый пропс для уведомления о завершении возврата
+  onDragStart?: () => void; // Новый пропс для уведомления о начале перетаскивания
 }
 
-const CardItem: React.FC<CardItemProps> = ({ card, onClick, onCardDrop, shouldRevert, onRevertComplete }) => {
+const CardItem: React.FC<CardItemProps> = ({ card, onClick, onCardDrop, shouldRevert, onRevertComplete, onDragStart }) => {
   const cardRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (card.location !== 'player') return;
 
     const element = cardRef.current;
-    if (!element) return;
+    if (!element) {
+      console.error(`Card element for ${card.id} not found`);
+      return;
+    }
 
     const draggable = Draggable.create(element, {
       type: "x,y",
+      onPress: function () {
+        console.log(`Drag started for card ${card.id}`);
+        if (onDragStart) {
+          onDragStart();
+        }
+      },
       onDragEnd: function () {
+        console.log(`Drag ended for card ${card.id}`);
         if (onCardDrop) {
           // Получаем текущую позицию карты относительно окна
           const rect = element.getBoundingClientRect();
@@ -38,16 +49,17 @@ const CardItem: React.FC<CardItemProps> = ({ card, onClick, onCardDrop, shouldRe
     })[0];
 
     return () => {
-        gsap.set(element, { x: 0, y: 0 });
+      gsap.set(element, { x: 0, y: 0 });
       draggable.kill();
-      
+      console.log(`Draggable killed for card ${card.id}`);
     };
-  }, [card.location, onCardDrop, card.id]);
+  }, [card.location, onCardDrop, onDragStart, card.id]);
 
   useEffect(() => {
     if (shouldRevert && card.location === 'player') {
       const element = cardRef.current;
       if (element) {
+        console.log(`Reverting card ${card.id} to original position`);
         gsap.to(element, {
           x: 0,
           y: 0,
@@ -56,12 +68,15 @@ const CardItem: React.FC<CardItemProps> = ({ card, onClick, onCardDrop, shouldRe
           onComplete: () => {
             if (onRevertComplete) {
               onRevertComplete();
+              console.log(`Revert complete for card ${card.id}`);
             }
           },
         });
+      } else {
+        console.error(`Element for card ${card.id} not found during revert`);
       }
     }
-  }, [shouldRevert, card.location, onRevertComplete]);
+  }, [shouldRevert, card.location, onRevertComplete, card.id]);
 
   const isFaceUp = 
     card.location === 'player' || 
