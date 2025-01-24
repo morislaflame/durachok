@@ -53,6 +53,7 @@ export function generateSlotsPositions(currentCount: number): { top: number; lef
       }
     }
   
+    console.log('Generated slot positions:', positions);
     return positions;
   }
   

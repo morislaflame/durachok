@@ -56,8 +56,11 @@ const GameBoard: React.FC<GameBoardProps> = ({ numPlayers }) => {
 
   // Обновляем позиции слотов при изменении количества карт на столе
   useEffect(() => {
-    const newPositions = generateSlotsPositions(tableCardIndices.length);
-    slotRefs.current = newPositions.map(() => React.createRef<HTMLDivElement>());
+    if (tableCardIndices.length > 0) {
+      const newPositions = generateSlotsPositions(tableCardIndices.length);
+      slotRefs.current = newPositions.map(() => React.createRef<HTMLDivElement>());
+      console.log('Updated slot positions:', newPositions);
+    }
   }, [tableCardIndices.length]);
 
   // Генерация колоды при первом рендере
@@ -141,7 +144,7 @@ const GameBoard: React.FC<GameBoardProps> = ({ numPlayers }) => {
       position.y < tableRect.bottom
     );
 
-    console.log(`Card ${cardId} dropped. Is over table: ${isOverTable}`);
+    console.log(`Card ${cardId} dropped at position:`, position);
 
     setIsTableActive(isOverTable);
 
@@ -167,11 +170,13 @@ const GameBoard: React.FC<GameBoardProps> = ({ numPlayers }) => {
         return;
       }
 
+      console.log(`Target position for card ${cardId}:`, targetPos);
+
       // Рассчитать конечную позицию относительно родителя `gameBoard`
       const relativeTop = (gameBoardRect.height * targetPos.top / 100) - cardHeight / 2;
       const relativeLeft = (gameBoardRect.width * targetPos.left / 100) - cardWidth / 2;
 
-      console.log(`Placing card ${cardId} at slot index ${tablePosIndex} (left: ${relativeLeft}, top: ${relativeTop})`);
+      console.log(`Calculated relative position for card ${cardId}: top ${relativeTop}, left ${relativeLeft}`);
 
       // Найти DOM-элемент карты (outer div)
       const element = document.querySelector(`[data-flip-id="${cardId}"]`) as HTMLElement;
@@ -190,10 +195,10 @@ const GameBoard: React.FC<GameBoardProps> = ({ numPlayers }) => {
               updatedCards[cardIndex].tablePositionIndex = tablePosIndex;
               return updatedCards;
             });
-
+  
             // Добавить индекс карты в массив tableCardIndices
             setTableCardIndices(prev => [...prev, cardIndex]);
-
+  
             console.log(`Card ${cardId} placed on table slot ${tablePosIndex}`);
           }
         });
@@ -207,7 +212,6 @@ const GameBoard: React.FC<GameBoardProps> = ({ numPlayers }) => {
 
   const playerCards = cards.filter((c) => c.location === 'player');
   const opponentCards = cards.filter((c) => c.location === 'opponent');
-  const tableCards = cards.filter((c) => c.location === 'table');
 
   return (
     <div className={styles.gameBoard} ref={gameBoardRef}>
@@ -236,19 +240,16 @@ const GameBoard: React.FC<GameBoardProps> = ({ numPlayers }) => {
             position: 'absolute',
             top: `${pos.top}%`,
             left: `${pos.left}%`,
-            width: '60px',
-            height: '85px',
+            width: '50px',
+            height: '70px',
             pointerEvents: 'none', // Чтобы слоты не блокировали события
-            // Можно добавить визуальное обозначение слотов, например:
-            // border: '1px dashed rgba(255, 255, 255, 0.5)',
-            // borderRadius: '8px',
           }}
         />
       ))}
 
       {/* Все карты (единым списком) */}
       {cards.map((card) => {
-        const style = getCardStyle(card, cards, numPlayers);
+        const style = getCardStyle(card, cards, numPlayers, tableCardIndices.length); // Передаём tableCardIndices.length
         return (
           <div 
             key={card.id} 

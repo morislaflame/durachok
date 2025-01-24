@@ -10,45 +10,46 @@ import { generateSlotsPositions } from './generateSlotsPositions'; // Импор
  * и, если нужно, учитывая seatIndex (какой именно оппонент).
  */
 export function getCardStyle(
-  card: Card,
-  allCards: Card[],
-  numPlayers: number
-): CSSProperties {
-  // Группа: все карты, у которых такая же location и такой же seatIndex
-  const sameLocationCards = allCards.filter(
-    (c) => c.location === card.location && c.seatIndex === card.seatIndex
-  );
-  const indexInGroup = sameLocationCards.findIndex((c) => c.id === card.id);
-
-  switch (card.location) {
-    case 'deck':
-      return getDeckCardStyle(indexInGroup);
-
-    case 'trump':
-      return getTrumpCardStyle();
-
-    case 'player':
-      return getPlayerCardStyle(indexInGroup, sameLocationCards.length);
-
-    case 'opponent': {
-      // Для оппонентов нужно учесть seatIndex
-      const seatIndex = card.seatIndex ?? 0;
-      const numOpponents = numPlayers - 1;
-      return getOpponentCardStyle(
-        indexInGroup,
-        sameLocationCards.length,
-        seatIndex,
-        numOpponents
-      );
+    card: Card,
+    allCards: Card[],
+    numPlayers: number,
+    tableCardCount: number // Добавляем параметр
+  ): CSSProperties {
+    // Группа: все карты, у которых такая же location и такой же seatIndex
+    const sameLocationCards = allCards.filter(
+      (c) => c.location === card.location && c.seatIndex === card.seatIndex
+    );
+    const indexInGroup = sameLocationCards.findIndex((c) => c.id === card.id);
+  
+    switch (card.location) {
+      case 'deck':
+        return getDeckCardStyle(indexInGroup);
+  
+      case 'trump':
+        return getTrumpCardStyle();
+  
+      case 'player':
+        return getPlayerCardStyle(indexInGroup, sameLocationCards.length);
+  
+      case 'opponent': {
+        // Для оппонентов нужно учесть seatIndex
+        const seatIndex = card.seatIndex ?? 0;
+        const numOpponents = numPlayers - 1;
+        return getOpponentCardStyle(
+          indexInGroup,
+          sameLocationCards.length,
+          seatIndex,
+          numOpponents
+        );
+      }
+  
+      case 'table':
+        return getTableCardStyle(card.tablePositionIndex || 0, tableCardCount);
+  
+      default:
+        return {};
     }
-
-    case 'table':
-      return getTableCardStyle(card.tablePositionIndex || 0, allCards.length);
-
-    default:
-      return {};
   }
-}
 
 // --------- ФУНКЦИИ ДЛЯ РАЗНЫХ LOCATION ----------
 
@@ -134,14 +135,18 @@ function getOpponentCardStyle(
 function getTableCardStyle(tablePositionIndex: number, totalCards: number): CSSProperties {
   const pos = generateSlotsPositions(totalCards)[tablePositionIndex];
   if (!pos) {
+    console.log(`No position found for tablePositionIndex: ${tablePositionIndex}`);
     return {};
   }
 
-  return {
+  const style = {
     position: 'absolute',
     top: `${pos.top}%`,
     left: `${pos.left}%`,
     transform: 'translate(-50%, -50%)',
-    zIndex: 500 + tablePositionIndex, // для отображения поверх других элементов
+    zIndex: 500 + tablePositionIndex,
   };
+
+  console.log(`Card style for tablePositionIndex ${tablePositionIndex}:`, style);
+  return style as CSSProperties;
 }

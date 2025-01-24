@@ -4,13 +4,13 @@ import styles from './styles/TableArea.module.css';
 
 interface TableAreaProps {
   /** Флаг, указывающий, активна ли подсветка зоны стола */
-  isActive: boolean;
+    isActive: boolean;
 }
 
 /**
  * Компонент, отображающий область стола.
  */
-const TableArea = forwardRef<HTMLDivElement, TableAreaProps>(({ isActive }, ref) => {
+const TableArea = forwardRef<HTMLDivElement, TableAreaProps>(({ isActive,  }, ref) => {
   return (
     <div ref={ref} className={`${styles.tableArea} ${isActive ? styles.active : ''}`}>
       {/* Визуальное обозначение стола */}
