@@ -10,15 +10,20 @@ gsap.registerPlugin(Draggable);
 
 interface CardItemProps {
   card: Card;
-  trumpSuit?: Suit | null; 
+  trumpSuit?: Suit | null;
   onClick?: () => void;
   onCardDrop?: (cardId: string, position: { x: number; y: number }) => void;
-  shouldRevert?: boolean; // Новый пропс для указания, нужно ли вернуть карту
-  onRevertComplete?: () => void; // Новый пропс для уведомления о завершении возврата
-  onDragStart?: () => void; // Новый пропс для уведомления о начале перетаскивания
+  shouldRevert?: boolean;
+  onRevertComplete?: () => void;
 }
 
-const CardItem: React.FC<CardItemProps> = ({ card, onClick, onCardDrop, shouldRevert, onRevertComplete, onDragStart }) => {
+const CardItem: React.FC<CardItemProps> = React.memo(({
+  card,
+  onClick,
+  onCardDrop,
+  shouldRevert,
+  onRevertComplete,
+}) => {
   const cardRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -30,30 +35,30 @@ const CardItem: React.FC<CardItemProps> = ({ card, onClick, onCardDrop, shouldRe
       return;
     }
 
+    console.log(`Initializing Draggable for card ${card.id}`);
+
     const draggable = Draggable.create(element, {
       type: "x,y",
       onPress: function () {
         console.log(`Drag started for card ${card.id}`);
-        if (onDragStart) {
-          onDragStart();
-        }
       },
       onDragEnd: function () {
         console.log(`Drag ended for card ${card.id}`);
+        const rect = element.getBoundingClientRect();
         if (onCardDrop) {
-          // Получаем текущую позицию карты относительно окна
-          const rect = element.getBoundingClientRect();
           onCardDrop(card.id, { x: rect.left, y: rect.top });
         }
       },
     })[0];
 
     return () => {
-      gsap.set(element, { x: 0, y: 0 });
-      draggable.kill();
-      console.log(`Draggable killed for card ${card.id}`);
+      if (draggable) {
+        draggable.kill();
+        gsap.set(element, { x: 0, y: 0 });
+        console.log(`Draggable killed for card ${card.id}`);
+      }
     };
-  }, [card.location, onCardDrop, onDragStart, card.id]);
+  }, [card.location, onCardDrop, card.id]);
 
   useEffect(() => {
     if (shouldRevert && card.location === 'player') {
@@ -78,18 +83,18 @@ const CardItem: React.FC<CardItemProps> = ({ card, onClick, onCardDrop, shouldRe
     }
   }, [shouldRevert, card.location, onRevertComplete, card.id]);
 
-  const isFaceUp = 
-    card.location === 'player' || 
+  const isFaceUp =
+    card.location === 'player' ||
     card.location === 'trump' ||
-    card.location === 'table'; // Показываем лицо, если на столе
+    card.location === 'table';
 
   return (
     <div
       ref={cardRef}
       className={`cardWrapper ${styles.cardWrapper}`}
-      data-flip-id={card.id} // Уникальный ID
+      data-flip-id={card.id}
       onClick={onClick}
-      style={{ touchAction: 'none' }} // Для предотвращения конфликтов с Draggable
+      style={{ touchAction: 'none', position: 'absolute' }} // Добавлено position: 'absolute' для корректного позиционирования
     >
       {isFaceUp ? (
         <CardFace card={card} isPlayerCard={card.location === 'player'} isTableCard={card.location === 'table'} />
@@ -98,6 +103,6 @@ const CardItem: React.FC<CardItemProps> = ({ card, onClick, onCardDrop, shouldRe
       )}
     </div>
   );
-};
+});
 
 export default CardItem;

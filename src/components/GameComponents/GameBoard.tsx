@@ -54,10 +54,6 @@ const GameBoard: React.FC<GameBoardProps> = ({ numPlayers }) => {
   // Создание массива рефов для слотов
   const slotRefs = useRef<React.RefObject<HTMLDivElement>[]>([]);
 
-  // Новые состояния для управления слотами при перетаскивании
-  const [isDragging, setIsDragging] = useState<boolean>(false);
-  const [dragSlotPositions, setDragSlotPositions] = useState<{ top: number; left: number }[]>([]);
-
   // Генерация колоды при первом рендере
   useEffect(() => {
     const initialDeck = createAllDeck();
@@ -212,53 +208,16 @@ const GameBoard: React.FC<GameBoardProps> = ({ numPlayers }) => {
             setTableCardIndices(prev => [...prev, cardIndex]);
 
             console.log(`Card ${cardId} placed on table slot ${tablePosIndex}`);
-
-            // Завершение перетаскивания
-            handleDragEnd(true);
           }
         });
       } else {
         console.error(`Element for card ${cardId} not found`);
-        handleDragEnd(false);
       }
     } else {
       // Не было размещения на столе, нужно вернуть карту обратно
       console.log(`Card ${cardId} not placed on table. Reverting.`);
       setRevertCardIds(prev => [...prev, cardId]);
-
-      // Завершение перетаскивания
-      handleDragEnd(false);
     }
-  };
-
-  // Функция обработки начала перетаскивания
-  const handleDragStart = () => {
-    console.log('Drag started');
-    if (isDragging) {
-      console.warn('A drag is already in progress');
-      return;
-    }
-    setIsDragging(true);
-    const newPositions = generateSlotsPositions(tableCardIndices.length + 1);
-    setDragSlotPositions(newPositions);
-    slotRefs.current = newPositions.map(() => React.createRef<HTMLDivElement>());
-    console.log('Generated slots on drag start:', newPositions);
-  };
-
-  // Функция обработки окончания перетаскивания
-  const handleDragEnd = (droppedOnTable: boolean) => {
-    console.log('Drag ended. Dropped on table:', droppedOnTable);
-    if (droppedOnTable) {
-      // Если карта была размещена на столе, обновляем позиции слотов для следующего возможного размещения
-      const updatedPositions = generateSlotsPositions(tableCardIndices.length);
-      setDragSlotPositions(updatedPositions);
-      console.log('Slots updated after placing card on table:', updatedPositions);
-    } else {
-      // Если карта не была размещена на столе, удаляем временные слоты
-      setDragSlotPositions([]);
-      console.log('Slots removed because card was not dropped on table');
-    }
-    setIsDragging(false);
   };
 
   const playerCards = cards.filter((c) => c.location === 'player');
@@ -282,7 +241,7 @@ const GameBoard: React.FC<GameBoardProps> = ({ numPlayers }) => {
       <Player onStartGame={handleStartGame} cards={playerCards} />
 
       {/* Слоты для карт на столе */}
-      { (isDragging ? dragSlotPositions : generateSlotsPositions(tableCardIndices.length)).map((pos, index) => (
+      { generateSlotsPositions(tableCardIndices.length).map((pos, index) => (
         <div
           key={index}
           ref={slotRefs.current[index]}
@@ -315,7 +274,6 @@ const GameBoard: React.FC<GameBoardProps> = ({ numPlayers }) => {
               onCardDrop={handleCardDrop}
               shouldRevert={revertCardIds.includes(card.id)}
               onRevertComplete={() => setRevertCardIds(prev => prev.filter(id => id !== card.id))}
-              onDragStart={handleDragStart} // Передаём обработчик начала перетаскивания
             />
           </div>
         );
