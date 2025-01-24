@@ -2,7 +2,7 @@
 import { Card } from '../../../types/types';
 import { CSSProperties } from 'react';
 import { generateOpponentSeatPositions } from './generateOpponentPositions';
-import { generateSlotsPositions } from './generateSlotsPositions';
+import { SLOT_POSITIONS } from './fixedSlotPositions';
 
 /**
  * Возвращает стили (top/left/transform/...) для конкретной карты
@@ -13,11 +13,10 @@ export function getCardStyle(
   card: Card,
   allCards: Card[],
   numPlayers: number,
-  totalSlots: number // Общее количество слотов (постоянных + временных)
 ): CSSProperties {
   // Группа: все карты, у которых такая же location и такой же seatIndex
   const sameLocationCards = allCards.filter(
-    (c) => c.location === card.location && c.seatIndex === card.seatIndex
+    (c) => c.location === card.location && c.seatIndex === c.seatIndex
   );
   const indexInGroup = sameLocationCards.findIndex((c) => c.id === card.id);
 
@@ -44,7 +43,7 @@ export function getCardStyle(
     }
 
     case 'table':
-      return getTableCardStyle(card.tablePositionIndex || 0, totalSlots);
+      return getTableCardStyle(card.tablePositionIndex || 0);
 
     default:
       return {};
@@ -76,10 +75,7 @@ function getTrumpCardStyle(): CSSProperties {
 }
 
 // Карты игрока (снизу)
-function getPlayerCardStyle(
-  indexInGroup: number,
-  totalCards: number
-): CSSProperties {
+function getPlayerCardStyle(indexInGroup: number, totalCards: number): CSSProperties {
   const overlap = Math.min(50, 400 / totalCards);
   const offsetX = -((totalCards - 1) * overlap) / 2;
   const rotationAngle = (indexInGroup - totalCards / 2) * 2;
@@ -88,9 +84,7 @@ function getPlayerCardStyle(
     position: 'absolute',
     bottom: '20%',
     left: '50%', // Центрируем относительно GameBoard
-    transform: `translateX(${
-      offsetX + overlap * indexInGroup
-    }px) rotate(${rotationAngle}deg)`,
+    transform: `translateX(${offsetX + overlap * indexInGroup}px) rotate(${rotationAngle}deg)`,
     transformOrigin: 'bottom center',
     zIndex: 10 + indexInGroup,
   };
@@ -130,10 +124,9 @@ function getOpponentCardStyle(
 /**
  * Карты на столе
  * @param tablePositionIndex Индекс позиции карты на столе
- * @param totalSlots Общее количество слотов на столе (постоянных + временных)
  */
-function getTableCardStyle(tablePositionIndex: number, totalSlots: number): CSSProperties {
-  const pos = generateSlotsPositions(totalSlots)[tablePositionIndex];
+function getTableCardStyle(tablePositionIndex: number): CSSProperties {
+  const pos = SLOT_POSITIONS[tablePositionIndex];
   if (!pos) {
     console.log(`No position found for tablePositionIndex: ${tablePositionIndex}`);
     return {};
@@ -143,7 +136,7 @@ function getTableCardStyle(tablePositionIndex: number, totalSlots: number): CSSP
     position: 'absolute',
     top: `${pos.top}%`,
     left: `${pos.left}%`,
-    transform: 'translate(-50%, -50%)',
+    // transform: 'translate(-50%, -50%)',
     zIndex: 500 + tablePositionIndex,
   };
 
