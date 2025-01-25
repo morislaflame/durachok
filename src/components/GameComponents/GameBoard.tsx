@@ -45,13 +45,27 @@ const GameBoard: React.FC<GameBoardProps> = ({ numPlayers }) => {
   const [trumpSuit, setTrumpSuit] = useState<Suit | null>(null);
 
   const flipStateRef = useRef<FlipState | null>(null);
-  const gameBoardRef = useRef<HTMLDivElement>(null); // Основной реф для GameBoard
+  const gameBoardRef = useRef<HTMLDivElement>(null); // Реф для GameBoard
   const tableRef = useRef<HTMLDivElement>(null);
   const [tableSlots, setTableSlots] = useState<(string | null)[]>(() =>
     Array(SLOT_POSITIONS.length).fill(null)
   ); // Состояние слотов на столе
   const [revertCardIds, setRevertCardIds] = useState<string[]>([]); // ID карт, которые нужно вернуть
   const [isTableActive, setIsTableActive] = useState<boolean>(false); // Для подсветки
+
+  const [gameBoardSize, setGameBoardSize] = useState<{ width: number; height: number }>({
+    width: 0,
+    height: 0,
+  });
+
+  // Получение размеров GameBoard после рендера
+  useLayoutEffect(() => {
+    if (gameBoardRef.current) {
+      const rect = gameBoardRef.current.getBoundingClientRect();
+      setGameBoardSize({ width: rect.width, height: rect.height });
+      console.log('GameBoard size:', rect.width, rect.height);
+    }
+  }, []);
 
   // Генерация колоды при первом рендере
   useEffect(() => {
@@ -126,82 +140,69 @@ const GameBoard: React.FC<GameBoardProps> = ({ numPlayers }) => {
   // Функция обработки сброса карты на стол
   const handleCardDrop = (cardId: string, position: { x: number; y: number }) => {
     console.log(`handleCardDrop called for card ${cardId} at position:`, position);
-  
+
     if (!gameBoardRef.current || !tableRef.current) {
       console.error('GameBoard or Table reference is missing');
       return;
     }
-  
+
     const gameBoardRect = gameBoardRef.current.getBoundingClientRect();
     const tableRect = tableRef.current.getBoundingClientRect();
-  
-    // Предполагаемые размеры карты (соответствуют слоту)
+
     const cardWidth = 60; // пикселей
     const cardHeight = 85; // пикселей
-  
+
+    // Рассчитываем позицию сброса относительно gameBoard
+    const relativeX = position.x - gameBoardRect.left;
+    const relativeY = position.y - gameBoardRect.top;
+
     const isOverTable =
-      position.x + cardWidth > tableRect.left &&
-      position.x < tableRect.right &&
-      position.y + cardHeight > tableRect.top &&
-      position.y < tableRect.bottom;
-  
+      relativeX + cardWidth > tableRect.left - gameBoardRect.left &&
+      relativeX < tableRect.right - gameBoardRect.left &&
+      relativeY + cardHeight > tableRect.top - gameBoardRect.top &&
+      relativeY < tableRect.bottom - gameBoardRect.top;
+
     console.log(`Card ${cardId} dropped over table:`, isOverTable);
-  
+
     setIsTableActive(isOverTable);
-  
+
     if (isOverTable) {
-      // Найти карту по ID
       const cardIndex = cards.findIndex((c) => c.id === cardId);
       if (cardIndex === -1) {
         console.error(`Card with ID ${cardId} not found`);
         return;
       }
-  
-      // Найти первый свободный слот
+
       const freeSlotIndex = tableSlots.findIndex((slot) => slot === null);
       if (freeSlotIndex === -1) {
         console.warn('Нет доступных позиций на столе (максимум 6 карт).');
         return;
       }
-  
+
       const targetPos = SLOT_POSITIONS[freeSlotIndex];
-  
       if (!targetPos) {
         console.error('Нет доступных слотов на столе.');
         return;
       }
-  
+
       console.log(`Target position for card ${cardId}:`, targetPos);
-  
-      // Рассчитать конечную позицию относительно родителя `gameBoard`
-      const targetTop = (gameBoardRect.height * targetPos.top) / 100 - cardHeight / 2;
-      const targetLeft = (gameBoardRect.width * targetPos.left) / 100 - cardWidth / 2;
-  
+
+      // Преобразуем целевые позиции в пиксели
+      const targetTop = (gameBoardSize.height * targetPos.top) / 100 - cardHeight / 2;
+      const targetLeft = (gameBoardSize.width * targetPos.left) / 100 - cardWidth / 2;
+
       console.log(`Calculated target position for card ${cardId}: top ${targetTop}, left ${targetLeft}`);
-  
-      // Найти DOM-элемент карты (outer div)
+
       const element = document.querySelector(`[data-flip-id="${cardId}"]`) as HTMLElement;
       if (element) {
-        // Получить текущие позиции
-        const currentRect = element.getBoundingClientRect();
-        const currentTop = currentRect.top - gameBoardRect.top;
-        const currentLeft = currentRect.left - gameBoardRect.left;
-  
-        // Рассчитать разницу для анимации
-        const deltaX = targetLeft - currentLeft;
-        const deltaY = targetTop - currentTop;
-  
-        console.log(`Animating card ${cardId}: deltaX ${deltaX}, deltaY ${deltaY}`);
-  
-        // Анимировать карту к слоту с использованием x и y
+        // Анимируем дочерний элемент cardWrapper
         gsap.to(element, {
-          x: deltaX,
-          y: deltaY,
+          top: targetTop,
+          left: targetLeft,
           duration: 0.5,
           ease: 'power2.out',
           onComplete: () => {
             console.log(`Animation completed for card ${cardId}`);
-            // Обновить карту: изменить location на 'table' и установить tablePositionIndex
             setCards((prevCards) => {
               const updatedCards = [...prevCards];
               updatedCards[cardIndex].location = 'table';
@@ -209,8 +210,7 @@ const GameBoard: React.FC<GameBoardProps> = ({ numPlayers }) => {
               console.log(`Card ${cardId} location updated to table at slot index ${freeSlotIndex}`);
               return updatedCards;
             });
-  
-            // Обновить состояние слотов, присвоив карту слоту
+
             setTableSlots((prevSlots) => {
               const updatedSlots = [...prevSlots];
               updatedSlots[freeSlotIndex] = cardId;
@@ -223,7 +223,6 @@ const GameBoard: React.FC<GameBoardProps> = ({ numPlayers }) => {
         console.error(`Element for card ${cardId} not found`);
       }
     } else {
-      // Не было размещения на столе, нужно вернуть карту обратно
       console.log(`Card ${cardId} not placed on table. Reverting.`);
       setRevertCardIds((prev) => [...prev, cardId]);
     }
@@ -268,7 +267,7 @@ const GameBoard: React.FC<GameBoardProps> = ({ numPlayers }) => {
 
       {/* Все карты (единым списком) */}
       {cards.map((card) => {
-        const style = getCardStyle(card, cards, numPlayers, SLOT_POSITIONS.length);
+        const style = getCardStyle(card, cards, numPlayers, gameBoardSize);
         return (
           <div key={card.id} style={style} data-flip-id={card.id}>
             <CardItem

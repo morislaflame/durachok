@@ -36,6 +36,8 @@ const CardItem: React.FC<CardItemProps> = React.memo(
         type: 'x,y',
         onPress: function () {
           console.log(`Начато перетаскивание карты ${card.id}`);
+          // Сброс трансформаций перед началом перетаскивания
+          gsap.set(element, { x: 0, y: 0 });
         },
         onDragEnd: function () {
           console.log(`Перетаскивание завершено для карты ${card.id}`);
@@ -87,7 +89,7 @@ const CardItem: React.FC<CardItemProps> = React.memo(
       <div
         ref={cardRef}
         className={`cardWrapper ${styles.cardWrapper}`}
-        data-flip-id={card.id}
+        data-flip-id={card.id} // Оставляем data-flip-id на дочернем элементе
         onClick={onClick}
         style={{ touchAction: 'none', position: 'absolute' }}
       >

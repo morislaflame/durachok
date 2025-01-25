@@ -9,9 +9,7 @@ export interface Card {
   suit: Suit;
   rank: Rank;
   location: 'deck' | 'player' | 'opponent' | 'trump' | 'table';
-  /** Какой именно оппонент владеет картой. */
   seatIndex?: number;
-  /** Позиция на столе. */
   tablePositionIndex?: number;
 }
 

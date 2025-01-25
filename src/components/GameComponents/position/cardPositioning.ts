@@ -13,6 +13,7 @@ export function getCardStyle(
   card: Card,
   allCards: Card[],
   numPlayers: number,
+  gameBoardSize: { width: number; height: number },
 ): CSSProperties {
   // Группа: все карты, у которых такая же location и такой же seatIndex
   const sameLocationCards = allCards.filter(
@@ -43,7 +44,7 @@ export function getCardStyle(
     }
 
     case 'table':
-      return getTableCardStyle(card.tablePositionIndex || 0);
+      return getTableCardStyle(card.tablePositionIndex || 0, gameBoardSize);
 
     default:
       return {};
@@ -124,19 +125,28 @@ function getOpponentCardStyle(
 /**
  * Карты на столе
  * @param tablePositionIndex Индекс позиции карты на столе
+ * @param gameBoardSize Размеры GameBoard в пикселях
  */
-function getTableCardStyle(tablePositionIndex: number): CSSProperties {
+function getTableCardStyle(
+  tablePositionIndex: number,
+  gameBoardSize: { width: number; height: number }
+): CSSProperties {
   const pos = SLOT_POSITIONS[tablePositionIndex];
   if (!pos) {
     console.log(`No position found for tablePositionIndex: ${tablePositionIndex}`);
     return {};
   }
 
+  const cardHeight = 85; // Пикселей
+  const cardWidth = 60; // Пикселей
+
+  const topPx = (gameBoardSize.height * pos.top) / 100 - cardHeight / 2;
+  const leftPx = (gameBoardSize.width * pos.left) / 100 - cardWidth / 2;
+
   const style = {
     position: 'absolute',
-    top: `${pos.top}%`,
-    left: `${pos.left}%`,
-    // transform: 'translate(-50%, -50%)',
+    top: `${topPx}px`,
+    left: `${leftPx}px`,
     zIndex: 500 + tablePositionIndex,
   };
 

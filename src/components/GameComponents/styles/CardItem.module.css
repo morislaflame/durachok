@@ -1,6 +1,9 @@
 .cardWrapper {
-    position: relative;
-    /* Можно добавить что-то общее для всех */
+    position: absolute;
+    width: 60px; /* Соответствует cardWidth */
+    height: 85px; /* Соответствует cardHeight */
+    cursor: pointer;
+    /* Добавьте другие общие стили для карт, если необходимо */
   }
   
   .cardBack {
