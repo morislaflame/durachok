@@ -2,7 +2,7 @@
 import { Card } from '../../../types/types';
 import { CSSProperties } from 'react';
 import { generateOpponentSeatPositions } from './generateOpponentPositions';
-import { SLOT_POSITIONS } from './fixedSlotPositions';
+import { TABLE_PAIRS_POSITIONS } from './tablePairsPositions';
 
 /**
  * Возвращает стили (top/left/transform/...) для конкретной карты
@@ -45,7 +45,7 @@ export function getCardStyle(
     }
 
     case 'table':
-      return getTableCardStyle(card.tablePositionIndex || 0);
+        return getTablePairStyle(card);
 
     default:
       return {};
@@ -129,21 +129,30 @@ function getOpponentCardStyle(
  * Карты на столе
  * @param tablePositionIndex Индекс позиции карты на столе
  */
-function getTableCardStyle(tablePositionIndex: number): CSSProperties {
-  const pos = SLOT_POSITIONS[tablePositionIndex];
-  if (!pos) {
-    console.log(`No position found for tablePositionIndex: ${tablePositionIndex}`);
-    return {};
+function getTablePairStyle(card: Card): CSSProperties {
+    // если нет pairIndex или role, возвращаем пустой стиль, 
+    // (или можно вообще не рендерить карту)
+    if (card.tablePairIndex === undefined || card.tableRole === undefined) {
+      return {};
+    }
+    const pairPos = TABLE_PAIRS_POSITIONS[card.tablePairIndex];
+    if (!pairPos) {
+      return {};
+    }
+  
+    // Выбираем координаты attack или cover
+    const slotPos = (card.tableRole === 'attack') 
+      ? pairPos.attack 
+      : pairPos.cover;
+  
+    // Можно сделать zIndex выше для cover, чтобы карта лежала поверх атакующей
+    const zIndex = (card.tableRole === 'cover') ? 600 : 500;
+  
+    return {
+      position: 'absolute',
+      top: `${slotPos.top}%`,
+      left: `${slotPos.left}%`,
+      zIndex,
+    };
   }
-
-  const style = {
-    position: 'absolute',
-    top: `${pos.top}%`,
-    left: `${pos.left}%`,
-    // transform: 'translate(-50%, -50%)',
-    zIndex: 500 + tablePositionIndex,
-  };
-
-  console.log(`Card style for tablePositionIndex ${tablePositionIndex}:`, style);
-  return style as CSSProperties;
-}
+  

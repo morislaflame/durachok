@@ -8,11 +8,18 @@ export interface Card {
   id: string;
   suit: Suit;
   rank: Rank;
-  location: 'deck' | 'player' | 'opponent' | 'trump' | 'table';
+  location: 'deck' | 'player' | 'opponent' | 'table';
   /** Какой именно оппонент владеет картой. */
   seatIndex?: number;
   /** Позиция на столе. */
-  tablePositionIndex?: number;
+  // tablePositionIndex?: number;
+  tablePairIndex?: number;
+  tableRole?: 'attack' | 'cover';
+}
+
+export interface TablePair {
+  attackCardId: string | null;
+  coverCardId: string | null;
 }
 
 export interface Player {

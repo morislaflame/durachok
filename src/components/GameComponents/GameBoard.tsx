@@ -1,28 +1,29 @@
-// GameBoard.tsx
-import React, { useState, useRef, useEffect, useLayoutEffect, useMemo } from 'react';
+import React, { useState, useRef, useEffect, useLayoutEffect } from 'react';
+import gsap from 'gsap';
+import { Draggable } from 'gsap/Draggable';
+import { Flip } from 'gsap/Flip';
+
 import { captureFlipState, animateFlip } from './animations/dealCards';
-import { Card, Suit, Rank } from '../../types/types';
+import { Card, Suit, Rank, TablePair } from '../../types/types';
 import CardItem from './CardItem';
 import OpponentsContainer from './OpponentsContainer';
 import Player from './Player';
 import styles from './styles/GameBoard.module.css';
 import { getCardStyle, getTrumpCardStyle } from './position/cardPositioning';
-import gsap from 'gsap';
-import { Draggable } from 'gsap/Draggable';
-import { Flip } from 'gsap/Flip';
-import { FlipState as FlipStateType } from './animations/dealCards';
-import { SLOT_POSITIONS } from './position/fixedSlotPositions';
+import { TABLE_PAIRS_POSITIONS } from './position/tablePairsPositions';
+import { canCoverCard } from './utils/canCoverCard';
 import { getSuitClass, getSuitSymbol } from './utils/suitSymbols';
 
 gsap.registerPlugin(Draggable, Flip);
 
-interface GameBoardProps {
-  numPlayers: number;
-}
-
 const suits: Suit[] = ['hearts', 'diamonds', 'clubs', 'spades'];
 const ranks: Rank[] = ['6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A'];
 
+// Максимум пар на столе (6 атак — это чаще всего потолок для подкидного)
+const MAX_TABLE_PAIRS = 6;
+const DISTANCE_THRESHOLD = 200; // макс. расстояние, при котором «слипаем» карту со слотом
+
+/** Создаём и перемешиваем колоду */
 function createAllDeck(): Card[] {
   const deck: Card[] = [];
   let idCount = 0;
@@ -44,385 +45,393 @@ function createAllDeck(): Card[] {
   return deck;
 }
 
-const DISTANCE_THRESHOLD = 200; // Пороговое расстояние в пикселях
+interface GameBoardProps {
+  numPlayers: number;
+}
 
 const GameBoard: React.FC<GameBoardProps> = ({ numPlayers }) => {
+  // ==== Состояния ====
   const [cards, setCards] = useState<Card[]>([]);
   const [trumpSuit, setTrumpSuit] = useState<Suit | null>(null);
   const [trumpCardId, setTrumpCardId] = useState<string | null>(null);
-  
 
-  const flipStateRef = useRef<FlipStateType | null>(null);
-  const newFlipStateRef = useRef<FlipStateType | null>(null);
-  
-  const gameBoardRef = useRef<HTMLDivElement>(null);
-  // Удалены tableRef и isTableActive
-  const [tableSlots, setTableSlots] = useState<(string | null)[]>(() =>
-    Array(SLOT_POSITIONS.length).fill(null)
+  // Пары (атака/крышка), изначально все свободны
+  const [tablePairs, setTablePairs] = useState<TablePair[]>(
+    () => Array.from({ length: MAX_TABLE_PAIRS }, () => ({
+      attackCardId: null,
+      coverCardId: null,
+    }))
   );
 
-  // Реф для хранения Draggable-инстансов
+  // Простая логика: сейчас ход «attack» или «defend»
+  const [currentTurnRole, setCurrentTurnRole] = useState<'attack' | 'defend'>('attack');
+
+  // ==== refs для анимации ====
+  const flipStateRef = useRef<ReturnType<typeof Flip.getState> | null>(null);
+  const newFlipStateRef = useRef<ReturnType<typeof Flip.getState> | null>(null);
+  const gameBoardRef = useRef<HTMLDivElement>(null);
+
+  // Draggable-инстансы
   const draggableRefs = useRef<Record<string, Draggable>>({});
 
-  // Реф для хранения актуального состояния tableSlots
-  const tableSlotsRef = useRef<(string | null)[]>(tableSlots);
-
-  // Обновляем tableSlotsRef при изменении tableSlots
-  useEffect(() => {
-    tableSlotsRef.current = tableSlots;
-  }, [tableSlots]);
-
-  // Генерация колоды при первом рендере
+  // ==== Инициализация колоды ====
   useEffect(() => {
     const initialDeck = createAllDeck();
     setCards(initialDeck);
-    console.log('Initial deck created:', initialDeck);
   }, []);
 
-  // Вычисляем первый свободный слот
-  const activeSlotIndex = useMemo(() => {
-    return tableSlots.findIndex((slot) => slot === null);
-  }, [tableSlots]);
-
-  // Логирование изменения активного слота
-  useEffect(() => {
-    if (activeSlotIndex !== -1) {
-      console.log(`Текущий активный слот: ${activeSlotIndex}`);
-    } else {
-      console.log('Нет доступных слотов на столе.');
-    }
-  }, [activeSlotIndex]);
-
-  // Анимация Flip при изменении состояния карт
+  // ==== Flip-анимация при изменении массива cards ====
   useLayoutEffect(() => {
     if (flipStateRef.current) {
       animateFlip(flipStateRef.current, () => {
         flipStateRef.current = null;
-        console.log('Flip animation completed');
       });
     }
   }, [cards]);
 
-  // Функция раздачи карт
+  // ==== Кнопка StartGame (раздача) ====
   const handleStartGame = () => {
     console.log('Game started');
     flipStateRef.current = captureFlipState();
-
-    console.log(flipStateRef.current);
 
     setCards((prev) => {
       const updated = [...prev];
       if (!updated.length) return updated;
 
+      // Последняя карта — козырь
       const lastIndex = updated.length - 1;
       const trumpCard = updated[lastIndex];
-
       setTrumpSuit(trumpCard.suit);
       setTrumpCardId(trumpCard.id);
-      console.log(`Trump card set: ${trumpCard.id}, Suit: ${trumpCard.suit}`);
 
-      let deckPos = 0;
-      const maxCardsForDeal = updated.length; // оставили 1 карту под козырь
+      // Раздаём
+      const maxCardsForDeal = updated.length;
       const numOpponents = numPlayers - 1;
+      let deckPos = 0;
+      const cardsPerPlayer = 6;
 
-      // Функция "отдать карту игроку"
       const giveCardToPlayer = (i: number) => {
         updated[i].location = 'player';
       };
-      // Функция "отдать карту конкретному оппоненту seatIndex"
       const giveCardToOpponent = (i: number, seat: number) => {
         updated[i].location = 'opponent';
         updated[i].seatIndex = seat;
       };
 
-      const cardsPerPlayer = 6;
-
-      // Цикл для раздачи карт циклически между игроком и оппонентами
       for (let i = 0; i < cardsPerPlayer; i++) {
         if (deckPos >= maxCardsForDeal) break;
-
-        // Раздаём одну карту игроку
         giveCardToPlayer(deckPos++);
-
-        // Раздаём по одной карте каждому оппоненту
         for (let seat = 0; seat < numOpponents; seat++) {
           if (deckPos >= maxCardsForDeal) break;
           giveCardToOpponent(deckPos++, seat);
         }
       }
 
-      console.log('Cards after dealing:', updated);
       return updated;
     });
   };
 
+  // ==== Фильтруем карты игрока и оппонентов ====
   const playerCards = cards.filter((c) => c.location === 'player');
   const opponentCards = cards.filter((c) => c.location === 'opponent');
 
+  // ==== Инициализация Draggable для карт в руке игрока ====
   useEffect(() => {
-    playerCards.forEach((card) => {
-      if (draggableRefs.current[card.id]) {
-        // Уже инициализировано
+      console.log('useEffect Draggable init: currentTurnRole=', currentTurnRole, 'playerCards=', playerCards);
+    
+      playerCards.forEach((card) => {
+        // Если уже есть Draggable для этой карты - УБЬЁМ и пересоздадим,
+        // чтобы "захватить" актуальное currentTurnRole в колбэках
+        if (draggableRefs.current[card.id]) {
+          console.log('Re-creating Draggable for card:', card.id, 'due to role change');
+          draggableRefs.current[card.id].kill();
+          delete draggableRefs.current[card.id];
+        }
+    
+        const el = document.querySelector(`[data-flip-id="${card.id}"]`) as HTMLElement | null;
+        if (!el) return;
+    
+        const draggable = Draggable.create(el, {
+          type: 'x,y',
+          onPress: () => {
+           console.log('onPress => newFlipStateRef for card:', card.id, 'role=', currentTurnRole);
+            newFlipStateRef.current = Flip.getState(el, {
+              props: 'transform, top, left, zIndex',
+            });
+          },
+          onDragEnd: () => {
+            flipStateRef.current = Flip.getState(el, {
+              props: 'transform, top, left, zIndex',
+            });
+         console.log('onDragEnd => calling handlePlayerCardDrop, card:', card.id, 'role=', currentTurnRole);
+            handlePlayerCardDrop(card.id, flipStateRef.current!);
+          },
+        })[0];
+    
+        draggableRefs.current[card.id] = draggable;
+      });
+    
+      // Если карта ушла из руки, убиваем Draggable
+      return () => {
+        Object.keys(draggableRefs.current).forEach((cardId) => {
+          const c = cards.find((cc) => cc.id === cardId);
+          if (c && c.location !== 'player') {
+            draggableRefs.current[cardId].kill();
+            delete draggableRefs.current[cardId];
+          }
+        });
+      };
+    // Обратите внимание, что в зависимости добавлен currentTurnRole
+    }, [playerCards, cards, currentTurnRole]);
+    
+
+  // ==== Обработка окончания перетаскивания ====
+  function handlePlayerCardDrop(cardId: string, flipState: ReturnType<typeof Flip.getState>) {
+    if (!gameBoardRef.current || !newFlipStateRef.current) return;
+
+    const el = document.querySelector(`[data-flip-id="${cardId}"]`) as HTMLElement | null;
+    if (!el) return;
+
+    const rect = el.getBoundingClientRect();
+    const gameRect = gameBoardRef.current.getBoundingClientRect();
+    // Центр карты
+    const cardCenter = {
+      x: rect.left + rect.width / 2,
+      y: rect.top + rect.height / 2,
+    };
+
+    if (currentTurnRole === 'attack') {
+      // Ищем первую свободную пару (attackCardId == null)
+      const freeIndex = tablePairs.findIndex((p) => p.attackCardId === null);
+      if (freeIndex === -1) {
+        console.log('Нет свободных слотов для атаки');
+        revertCard(cardId, newFlipStateRef.current);
+        return;
+      }
+      // Проверяем расстояние до attack-слота
+      const { top, left } = TABLE_PAIRS_POSITIONS[freeIndex].attack;
+      const slotPos = {
+        x: gameRect.left + (gameRect.width * left) / 100,
+        y: gameRect.top + (gameRect.height * top) / 100,
+      };
+      const dist = Math.hypot(cardCenter.x - slotPos.x, cardCenter.y - slotPos.y);
+      if (dist > DISTANCE_THRESHOLD) {
+        console.log('Слишком далеко до attack-слота');
+        revertCard(cardId, newFlipStateRef.current);
         return;
       }
 
-      const element = document.querySelector(`[data-flip-id="${card.id}"]`);
-      // console.log('element:', element);
-      if (element) {
-        const draggableInstance = Draggable.create(element, {
-          type: 'x,y',
-          onPress: function () {
-            // Захват исходного состояния при начале перетаскивания
-            newFlipStateRef.current = Flip.getState(element, {
-              props: 'transform, top, left, zIndex',
-            });
-            console.log('Исходное состояние:', newFlipStateRef.current);
-            console.log(`Начато перетаскивание карты ${card.id}`);
-          },
-          onDragEnd: function () {
-            console.log(`Перетаскивание завершено для карты ${card.id}`);
+      // Размещаем карту как "attack"
+      placeAttackCard(cardId, freeIndex, flipState);
 
-            // Захват нового состояния Flip непосредственно здесь
-            flipStateRef.current = Flip.getState(element, {
-              props: 'transform, top, left, zIndex',
-            });
-            console.log('Новое состояние Flip после перетаскивания:', flipStateRef.current);
+    } else {
+      // Ход defend
+      let foundIndex: number | null = null;
+      for (let i = 0; i < tablePairs.length; i++) {
+        const pair = tablePairs[i];
+        if (!pair.attackCardId || pair.coverCardId) continue; // занята или нет атаки
 
-            const rect = element.getBoundingClientRect();
-
-            // Получаем позицию игрового поля
-            if (!gameBoardRef.current) {
-              console.error('gameBoardRef отсутствует');
-              return;
-            }
-            const gameBoardRect = gameBoardRef.current.getBoundingClientRect();
-
-            // Определяем центр карты
-            const cardCenter = {
-              x: rect.left + rect.width / 2,
-              y: rect.top + rect.height / 2,
-            };
-
-            // Используем tableSlotsRef.current для получения актуального первого свободного слота
-            const freeSlotIndex = tableSlotsRef.current.findIndex((slot) => slot === null);
-            if (freeSlotIndex === -1) {
-              console.warn('Нет доступных слотов на столе.');
-              // Возврат карты на исходную позицию
-              if (newFlipStateRef.current) {
-                console.log(`Возврат карты ${card.id} на исходную позицию`);
-                Flip.to(newFlipStateRef.current, {
-                  duration: 0.8,
-                  ease: 'power4.out',
-                  absolute: true,
-                  zIndex: 100,
-                  onComplete: () => {
-                    console.log(`Возврат завершен для карты ${card.id}`);
-                  },
-                });
-              }
-              return;
-            }
-
-            const targetPos = SLOT_POSITIONS[freeSlotIndex];
-            if (!targetPos) {
-              console.error('Целевая позиция для слота не найдена.');
-              // Возврат карты на исходную позицию
-              if (newFlipStateRef.current) {
-                Flip.to(newFlipStateRef.current, {
-                  duration: 0.8,
-                  ease: 'power4.out',
-                  absolute: true,
-                  zIndex: 100,
-                  onComplete: () => {
-                    console.log(`Возврат завершен для карты ${card.id}`);
-                  },
-                });
-              }
-              return;
-            }
-
-            // Рассчитываем абсолютные пиксельные позиции слота
-            const slotPixelPosition = {
-              x:
-                gameBoardRect.left +
-                (gameBoardRect.width * targetPos.left) / 100 +
-                25, // 25 - половина ширины слота (50px / 2)
-              y:
-                gameBoardRect.top +
-                (gameBoardRect.height * targetPos.top) / 100 +
-                35, // 35 - половина высоты слота (70px / 2)
-            };
-
-            // Рассчитываем расстояние между центрами карты и слота
-            const distance = Math.hypot(
-              cardCenter.x - slotPixelPosition.x,
-              cardCenter.y - slotPixelPosition.y
-            );
-
-            console.log(`Расстояние до активного слота ${freeSlotIndex}: ${distance}px`);
-
-            if (distance <= DISTANCE_THRESHOLD) {
-              // Если расстояние меньше порога, размещаем карту в слоте
-              console.log(
-                `Карта ${card.id} близка к активному слоту ${freeSlotIndex}. Размещаем в слоту.`
-              );
-
-              // Передаём newFlipState и slotIndex в функцию обработки
-              handleCardDropOnTable(card.id, flipStateRef.current, freeSlotIndex);
-            } else {
-              // Иначе возвращаем карту на исходную позицию
-              console.log(
-                `Карта ${card.id} слишком далеко от активного слота ${freeSlotIndex}. Возврат на исходную позицию.`
-              );
-              if (newFlipStateRef.current) {
-                Flip.to(newFlipStateRef.current, {
-                  duration: 0.8,
-                  ease: 'power4.out',
-                  absolute: true,
-                  zIndex: 100,
-                  onComplete: () => {
-                    console.log(`Возврат завершен для карты ${card.id}`);
-                  },
-                });
-              }
-            }
-          },
-        })[0];
-
-        draggableRefs.current[card.id] = draggableInstance;
-      } else {
-        console.error(`Element для карты ${card.id} не найден`);
-      }
-    });
-
-    // Очистка Draggable-инстансов для карт, которые больше не являются игроком
-    return () => {
-      Object.keys(draggableRefs.current).forEach((cardId) => {
-        const card = cards.find((c) => c.id === cardId);
-        if (card && card.location !== 'player') {
-          draggableRefs.current[cardId].kill();
-          delete draggableRefs.current[cardId];
-          console.log(`Draggable killed for card ${cardId}`);
+        // Коорд. cover-слота
+        const { top, left } = TABLE_PAIRS_POSITIONS[i].cover;
+        const slotPos = {
+          x: gameRect.left + (gameRect.width * left) / 100,
+          y: gameRect.top + (gameRect.height * top) / 100,
+        };
+        const dist = Math.hypot(cardCenter.x - slotPos.x, cardCenter.y - slotPos.y);
+        if (dist <= DISTANCE_THRESHOLD) {
+          foundIndex = i;
+          console.log(
+            `[DEFEND] i=${i}, attackCardId=${pair.attackCardId}, coverCardId=${pair.coverCardId}, distance=${dist}`
+          );
+          
+          break;
         }
-      });
-    };
-  }, [playerCards, cards]); 
+      }
+      if (foundIndex === null) {
+        console.log('Нет подходящего cover-слота рядом');
+        revertCard(cardId, newFlipStateRef.current);
+        return;
+      }
 
-  // Обновлённая функция обработки сброса карты на слот с анимацией Flip
-  const handleCardDropOnTable = (
-    cardId: string,
-    flipStateRef: FlipStateType,
-    slotIndex: number
-  ) => {
-    if (!gameBoardRef.current) {
-      console.error('GameBoard ссылка отсутствует');
-      return;
+      // Проверяем, бьёт ли карта
+      const attackId = tablePairs[foundIndex].attackCardId;
+      if (!attackId) {
+        revertCard(cardId, newFlipStateRef.current);
+        return;
+      }
+      const attackCard = cards.find((c) => c.id === attackId);
+      const coverCard = cards.find((c) => c.id === cardId);
+      if (!attackCard || !coverCard) {
+        revertCard(cardId, newFlipStateRef.current);
+        return;
+      }
+      if (!canCoverCard(attackCard, coverCard, trumpSuit)) {
+        console.log('Карта не бьёт атакующую');
+        revertCard(cardId, newFlipStateRef.current);
+        return;
+      }
+      // Всё ок, кладём как cover
+      placeCoverCard(cardId, foundIndex, flipState);
     }
+  }
 
-    console.log(
-      `Обработка сброса карты ${cardId} в слот ${slotIndex} с новым состоянием Flip`
-    );
-
-    // Обновление состояния карты: перемещение на стол и назначение индекса слота
-    setCards((prevCards) => {
-      const updatedCards = [...prevCards];
-      const cardIndex = updatedCards.findIndex((c) => c.id === cardId);
-      if (cardIndex === -1) {
-        console.error(`Карта с ID ${cardId} не найдена`);
-        return updatedCards;
+  /** Положить карту как "атака" в указанную пару */
+  function placeAttackCard(
+    cardId: string,
+    pairIndex: number,
+    flipState: ReturnType<typeof Flip.getState>
+  ) {
+    // Обновляем tablePairs
+    setTablePairs((prev) => {
+      const copy = [...prev];
+      copy[pairIndex].attackCardId = cardId;
+      return copy;
+    });
+    // Обновляем карту
+    setCards((prev) => {
+      const arr = [...prev];
+      const c = arr.find((x) => x.id === cardId);
+      if (c) {
+        c.location = 'table';
+        c.tablePairIndex = pairIndex;
+        c.tableRole = 'attack';
       }
-      updatedCards[cardIndex].location = 'table';
-      updatedCards[cardIndex].tablePositionIndex = slotIndex;
-      console.log(`Карта ${cardId} перемещена в слот ${slotIndex} на столе`);
-      return updatedCards;
+      return arr;
     });
 
-    // Назначение карты в слот
-    setTableSlots((prevSlots) => {
-      const updatedSlots = [...prevSlots];
-      updatedSlots[slotIndex] = cardId;
-      console.log(`Слот ${slotIndex} на столе теперь содержит карту ${cardId}`);
-
-      // Логирование новой активной позиции после занятости слота
-      const newActiveSlot = updatedSlots.findIndex((slot) => slot === null);
-      if (newActiveSlot !== -1) {
-        console.log(`Новый активный слот: ${newActiveSlot}`);
-      } else {
-        console.log('Нет доступных слотов на столе после размещения карты.');
-      }
-
-      return updatedSlots;
-    });
-
-    // Анимация карты с использованием Flip
-    Flip.from(flipStateRef, {
+    // Запускаем анимацию
+    Flip.from(flipState, {
       duration: 0.8,
       ease: 'power2.out',
       absolute: true,
       scale: true,
-      rotate: 1,
-      onComplete: () => {
-        console.log(`Анимация Flip завершена для карты ${cardId}`);
-      },
     });
-  };
+  }
 
+  /** Положить карту как "cover" */
+  function placeCoverCard(
+    cardId: string,
+    pairIndex: number,
+    flipState: ReturnType<typeof Flip.getState>
+  ) {
+    console.log(`[placeCoverCard] pairIndex=${pairIndex}, card=${cardId}`);
+    setTablePairs((prev) => {
+      const copy = [...prev];
+      copy[pairIndex].coverCardId = cardId;
+      return copy;
+    });
+    setCards((prev) => {
+      const arr = [...prev];
+      const c = arr.find((x) => x.id === cardId);
+      if (c) {
+        c.location = 'table';
+        c.tablePairIndex = pairIndex;
+        c.tableRole = 'cover';
+      }
+      return arr;
+    });
+
+    Flip.from(flipState, {
+      duration: 0.8,
+      ease: 'power2.out',
+      absolute: true,
+      scale: true,
+    });
+  }
+
+  /** Откат карты назад, если не подошла */
+  function revertCard(cardId: string, oldState: ReturnType<typeof Flip.getState>) {
+    console.log(`Возвращаем карту ${cardId}`);
+    Flip.to(oldState, {
+      duration: 0.8,
+      ease: 'power4.out',
+      absolute: true,
+    });
+  }
+
+  // ==== Рендер ====
   return (
     <div className={styles.gameBoard} ref={gameBoardRef}>
 
+      {/* Контейнер оппонентов */}
       <OpponentsContainer numPlayers={numPlayers} allOpponentCards={opponentCards} />
+
+      {/* Игрок (кнопка старт, карты) */}
       <Player onStartGame={handleStartGame} cards={playerCards} />
 
-      {SLOT_POSITIONS.map((pos, index) => (
-        <div
-          key={index}
-          className={styles.slot}
-          style={{
-            position: 'absolute',
-            top: `${pos.top}%`,
-            left: `${pos.left}%`,
-            width: '50px',
-            height: '70px',
-            pointerEvents: 'none', // Чтобы слоты не блокировали события
-            backgroundColor:
-              tableSlots[index] === null
-                ? 'rgba(255, 0, 0, 0.3)' // Красный для активного слота (первый свободный)
-                : 'rgba(0, 255, 0, 0.2)', // Зеленый для занятых слотов
-            border:
-              tableSlots[index] === null
-                ? '2px solid red' // Толстая граница для активного слота
-                : '1px dashed green', // Пунктирная граница для занятых слотов
-          }}
-        />
-      ))}
+      {/* Тестовые кнопки: смена роли хода */}
+      <div style={{ position: 'absolute', top: 10, right: 10, color: 'white' }}>
+        <p>Current role: {currentTurnRole}</p>
+        <button onClick={() => setCurrentTurnRole('attack')}>Attack</button>
+        <button onClick={() => setCurrentTurnRole('defend')}>Defend</button>
+      </div>
 
+      {/* Отрисовка слотов-пар (attack/cover). */}
+      {tablePairs.map((pair, i) => {
+        const pos = TABLE_PAIRS_POSITIONS[i];
+        if (!pos) return null;
+        return (
+          <React.Fragment key={i}>
+            {/* Слот "attack" */}
+            <div
+              style={{
+                position: 'absolute',
+                top: `${pos.attack.top}%`,
+                left: `${pos.attack.left}%`,
+                width: '50px',
+                height: '70px',
+                backgroundColor: pair.attackCardId
+                  ? 'rgba(0,255,0,0.2)'
+                  : 'rgba(255,0,0,0.3)',
+                border: pair.attackCardId
+                  ? '1px dashed green'
+                  : '2px solid red',
+                pointerEvents: 'none',
+              }}
+            />
+            {/* Слот "cover" */}
+            <div
+              style={{
+                position: 'absolute',
+                top: `${pos.cover.top}%`,
+                left: `${pos.cover.left}%`,
+                width: '50px',
+                height: '70px',
+                backgroundColor: pair.coverCardId
+                  ? 'rgba(0,255,0,0.2)'
+                  : 'rgba(255,0,0,0.3)',
+                border: pair.coverCardId
+                  ? '1px dashed green'
+                  : '2px solid red',
+                pointerEvents: 'none',
+              }}
+            />
+          </React.Fragment>
+        );
+      })}
+
+      {/* Индикатор масти козыря */}
       {trumpSuit && (
         <div
           className={styles.trumpIndicator}
-          style={{
-            color: getSuitClass(trumpSuit),
-          }}
+          style={{ color: getSuitClass(trumpSuit) }}
         >
           {getSuitSymbol(trumpSuit)}
         </div>
       )}
 
-      {/* Все карты (единым списком) */}
+      {/* Все карты */}
       {cards.map((card) => {
-        let style;
+        let style: React.CSSProperties;
         if (card.id === trumpCardId && card.location === 'deck') {
-          // Если есть функция вида getTrumpCardStyle — вызываем её
-          style = getTrumpCardStyle();
+          style = getTrumpCardStyle(); 
         } else {
           style = getCardStyle(card, cards, numPlayers);
         }
 
         const isFaceUp =
-          // Если это карта в руке игрока
           card.location === 'player' ||
-          // Или карта лежит на столе
           card.location === 'table' ||
-          // Или это именно козырная карта, которая ещё в колоде
           (card.id === trumpCardId && card.location === 'deck');
 
         return (
@@ -431,7 +440,7 @@ const GameBoard: React.FC<GameBoardProps> = ({ numPlayers }) => {
             card={card}
             trumpSuit={trumpSuit}
             style={style}
-            isDraggable={card.location === 'player'} 
+            isDraggable={card.location === 'player'}
             isFaceUp={isFaceUp}
           />
         );
