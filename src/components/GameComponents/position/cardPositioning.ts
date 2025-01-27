@@ -68,7 +68,7 @@ function getDeckCardStyle(indexInGroup: number): CSSProperties {
 
 
 // Козырь
-export function getTrumpCardStyle(card: Card, allCards: Card[], numPlayers: number): CSSProperties {
+export function getTrumpCardStyle(): CSSProperties {
   return {
     position: 'absolute',
     top: '16%',

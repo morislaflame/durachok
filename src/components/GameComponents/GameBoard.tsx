@@ -12,6 +12,7 @@ import { Draggable } from 'gsap/Draggable';
 import { Flip } from 'gsap/Flip';
 import { FlipState as FlipStateType } from './animations/dealCards';
 import { SLOT_POSITIONS } from './position/fixedSlotPositions';
+import { getSuitClass, getSuitSymbol } from './utils/suitSymbols';
 
 gsap.registerPlugin(Draggable, Flip);
 
@@ -395,12 +396,23 @@ const GameBoard: React.FC<GameBoardProps> = ({ numPlayers }) => {
         />
       ))}
 
+      {trumpSuit && (
+        <div
+          className={styles.trumpIndicator}
+          style={{
+            color: getSuitClass(trumpSuit),
+          }}
+        >
+          {getSuitSymbol(trumpSuit)}
+        </div>
+      )}
+
       {/* Все карты (единым списком) */}
       {cards.map((card) => {
         let style;
         if (card.id === trumpCardId && card.location === 'deck') {
           // Если есть функция вида getTrumpCardStyle — вызываем её
-          style = getTrumpCardStyle(card, cards, numPlayers);
+          style = getTrumpCardStyle();
         } else {
           style = getCardStyle(card, cards, numPlayers);
         }
