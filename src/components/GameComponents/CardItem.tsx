@@ -9,16 +9,12 @@ interface CardItemProps {
   trumpSuit?: Suit | null;
   onClick?: () => void;
   style?: React.CSSProperties;
-  isDraggable?: boolean; // Новый пропс для указания, является ли карта перетаскиваемой
+  isDraggable?: boolean;
+  isFaceUp?: boolean;
 }
 
 const CardItem: React.FC<CardItemProps> = React.memo(
-  ({ card, onClick, style, isDraggable = false }) => {
-    const isFaceUp =
-      card.location === 'player' ||
-      card.location === 'trump' ||
-      card.location === 'table';
-
+  ({ card, onClick, style, isDraggable = false, isFaceUp = false }) => {
     return (
       <div
         className={`${styles.cardBox} cardBox`}

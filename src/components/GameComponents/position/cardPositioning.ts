@@ -9,6 +9,8 @@ import { SLOT_POSITIONS } from './fixedSlotPositions';
  * в зависимости от её location (deck/trump/player/opponent/table)
  * и, если нужно, учитывая seatIndex (какой именно оппонент).
  */
+
+
 export function getCardStyle(
   card: Card,
   allCards: Card[],
@@ -26,9 +28,6 @@ export function getCardStyle(
   switch (card.location) {
     case 'deck':
       return getDeckCardStyle(indexInGroup);
-
-    case 'trump':
-      return getTrumpCardStyle();
 
     case 'player':
       return getPlayerCardStyle(indexInGroup, sameLocationCards.length);
@@ -66,8 +65,10 @@ function getDeckCardStyle(indexInGroup: number): CSSProperties {
   };
 }
 
+
+
 // Козырь
-function getTrumpCardStyle(): CSSProperties {
+export function getTrumpCardStyle(card: Card, allCards: Card[], numPlayers: number): CSSProperties {
   return {
     position: 'absolute',
     top: '16%',

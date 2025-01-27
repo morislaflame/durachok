@@ -6,7 +6,7 @@ import CardItem from './CardItem';
 import OpponentsContainer from './OpponentsContainer';
 import Player from './Player';
 import styles from './styles/GameBoard.module.css';
-import { getCardStyle } from './position/cardPositioning';
+import { getCardStyle, getTrumpCardStyle } from './position/cardPositioning';
 import gsap from 'gsap';
 import { Draggable } from 'gsap/Draggable';
 import { Flip } from 'gsap/Flip';
@@ -48,6 +48,7 @@ const DISTANCE_THRESHOLD = 200; // Пороговое расстояние в п
 const GameBoard: React.FC<GameBoardProps> = ({ numPlayers }) => {
   const [cards, setCards] = useState<Card[]>([]);
   const [trumpSuit, setTrumpSuit] = useState<Suit | null>(null);
+  const [trumpCardId, setTrumpCardId] = useState<string | null>(null);
   
 
   const flipStateRef = useRef<FlipStateType | null>(null);
@@ -114,12 +115,13 @@ const GameBoard: React.FC<GameBoardProps> = ({ numPlayers }) => {
 
       const lastIndex = updated.length - 1;
       const trumpCard = updated[lastIndex];
-      trumpCard.location = 'trump'; // карта-козырь
+
       setTrumpSuit(trumpCard.suit);
+      setTrumpCardId(trumpCard.id);
       console.log(`Trump card set: ${trumpCard.id}, Suit: ${trumpCard.suit}`);
 
       let deckPos = 0;
-      const maxCardsForDeal = lastIndex; // оставили 1 карту под козырь
+      const maxCardsForDeal = updated.length; // оставили 1 карту под козырь
       const numOpponents = numPlayers - 1;
 
       // Функция "отдать карту игроку"
@@ -366,15 +368,10 @@ const GameBoard: React.FC<GameBoardProps> = ({ numPlayers }) => {
 
   return (
     <div className={styles.gameBoard} ref={gameBoardRef}>
-      {/* Компонент TableArea удалён */}
 
-      {/* Все оппоненты (аватар + счётчик) */}
       <OpponentsContainer numPlayers={numPlayers} allOpponentCards={opponentCards} />
-
-      {/* Сам игрок (кнопка Start + аватар + кол-во карт) */}
       <Player onStartGame={handleStartGame} cards={playerCards} />
 
-      {/* Слоты для карт на столе */}
       {SLOT_POSITIONS.map((pos, index) => (
         <div
           key={index}
@@ -400,14 +397,30 @@ const GameBoard: React.FC<GameBoardProps> = ({ numPlayers }) => {
 
       {/* Все карты (единым списком) */}
       {cards.map((card) => {
-        const style = getCardStyle(card, cards, numPlayers);
+        let style;
+        if (card.id === trumpCardId && card.location === 'deck') {
+          // Если есть функция вида getTrumpCardStyle — вызываем её
+          style = getTrumpCardStyle(card, cards, numPlayers);
+        } else {
+          style = getCardStyle(card, cards, numPlayers);
+        }
+
+        const isFaceUp =
+          // Если это карта в руке игрока
+          card.location === 'player' ||
+          // Или карта лежит на столе
+          card.location === 'table' ||
+          // Или это именно козырная карта, которая ещё в колоде
+          (card.id === trumpCardId && card.location === 'deck');
+
         return (
           <CardItem
             key={card.id}
             card={card}
             trumpSuit={trumpSuit}
             style={style}
-            isDraggable={card.location === 'player'} // Передача информации о draggable
+            isDraggable={card.location === 'player'} 
+            isFaceUp={isFaceUp}
           />
         );
       })}
