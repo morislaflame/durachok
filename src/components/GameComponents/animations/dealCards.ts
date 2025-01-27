@@ -8,16 +8,21 @@ export type FlipState = ReturnType<typeof Flip.getState>;
 
 /** Снимаем состояние */
 export function captureFlipState(): FlipState {
-  return Flip.getState('.cardWrapper');
+  return Flip.getState('.cardBox', {
+    props: 'transform, top, left'
+  });
 }
 
 /** Анимируем */
 export function animateFlip(oldState: FlipState, onComplete?: () => void) {
   Flip.from(oldState, {
-    duration: 0.9,
+    duration: 0.8,
+    scale: true,
     absolute: true,
     stagger: 0.05,
     ease: 'power3.out',
     onComplete,
   });
 }
+
+

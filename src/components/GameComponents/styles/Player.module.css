@@ -18,7 +18,7 @@
     gap: 15px;
     border-radius: 10px 10px 0 0;
     background: rgb(72 72 72);
-    z-index: 100;
+    z-index: 1000;
   }
 
   
