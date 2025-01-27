@@ -5,7 +5,6 @@ import { Card, Suit, Rank } from '../../types/types';
 import CardItem from './CardItem';
 import OpponentsContainer from './OpponentsContainer';
 import Player from './Player';
-// Импорт TableArea удалён, так как он больше не нужен
 import styles from './styles/GameBoard.module.css';
 import { getCardStyle } from './position/cardPositioning';
 import gsap from 'gsap';
@@ -358,6 +357,7 @@ const GameBoard: React.FC<GameBoardProps> = ({ numPlayers }) => {
       ease: 'power2.out',
       absolute: true,
       scale: true,
+      rotate: 1,
       onComplete: () => {
         console.log(`Анимация Flip завершена для карты ${cardId}`);
       },
