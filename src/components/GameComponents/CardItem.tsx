@@ -11,10 +11,11 @@ interface CardItemProps {
   style?: React.CSSProperties;
   isDraggable?: boolean;
   isFaceUp?: boolean;
+  dataPlayerHand?: string;
 }
 
 const CardItem: React.FC<CardItemProps> = React.memo(
-  ({ card, onClick, style, isDraggable = false, isFaceUp = false }) => {
+  ({ card, onClick, style, isDraggable = false, isFaceUp = false, dataPlayerHand }) => {
     return (
       <div
         className={`${styles.cardBox} cardBox`}
@@ -26,6 +27,7 @@ const CardItem: React.FC<CardItemProps> = React.memo(
           position: 'absolute', // Обеспечение абсолютного позиционирования для корректной анимации
         }}
         data-flip-id={card.id} // Идентификатор для поиска DOM-элемента
+        data-player-hand={dataPlayerHand}
       >
         {isFaceUp ? (
           <CardFace

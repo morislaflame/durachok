@@ -70,6 +70,7 @@ const GameBoard: React.FC<GameBoardProps> = ({ numPlayers }) => {
   const flipStateRef = useRef<ReturnType<typeof Flip.getState> | null>(null);
   const newFlipStateRef = useRef<ReturnType<typeof Flip.getState> | null>(null);
   const gameBoardRef = useRef<HTMLDivElement>(null);
+  
 
   // Draggable-инстансы
   const draggableRefs = useRef<Record<string, Draggable>>({});
@@ -87,6 +88,7 @@ const GameBoard: React.FC<GameBoardProps> = ({ numPlayers }) => {
         flipStateRef.current = null;
       });
     }
+    console.log('Flip-анимация cards=', cards);
   }, [cards]);
 
   // ==== Кнопка StartGame (раздача) ====
@@ -136,7 +138,7 @@ const GameBoard: React.FC<GameBoardProps> = ({ numPlayers }) => {
   const opponentCards = cards.filter((c) => c.location === 'opponent');
 
   // ==== Инициализация Draggable для карт в руке игрока ====
-  useEffect(() => {
+  useLayoutEffect(() => {
       console.log('useEffect Draggable init: currentTurnRole=', currentTurnRole, 'playerCards=', playerCards);
     
       playerCards.forEach((card) => {
@@ -156,7 +158,7 @@ const GameBoard: React.FC<GameBoardProps> = ({ numPlayers }) => {
           onPress: () => {
            console.log('onPress => newFlipStateRef for card:', card.id, 'role=', currentTurnRole);
             newFlipStateRef.current = Flip.getState(el, {
-              props: 'transform, top, left, zIndex',
+              props: 'transform, zIndex',
             });
           },
           onDragEnd: () => {
@@ -182,8 +184,7 @@ const GameBoard: React.FC<GameBoardProps> = ({ numPlayers }) => {
         });
       };
     // Обратите внимание, что в зависимости добавлен currentTurnRole
-    }, [playerCards, cards, currentTurnRole]);
-    
+    }, [playerCards, currentTurnRole]);
 
   // ==== Обработка окончания перетаскивания ====
   function handlePlayerCardDrop(cardId: string, flipState: ReturnType<typeof Flip.getState>) {
@@ -305,6 +306,7 @@ const GameBoard: React.FC<GameBoardProps> = ({ numPlayers }) => {
       ease: 'power2.out',
       absolute: true,
       scale: true,
+      
     });
   }
 
@@ -346,6 +348,7 @@ const GameBoard: React.FC<GameBoardProps> = ({ numPlayers }) => {
       duration: 0.8,
       ease: 'power4.out',
       absolute: true,
+      zIndex: 100,
     });
   }
 
@@ -442,6 +445,7 @@ const GameBoard: React.FC<GameBoardProps> = ({ numPlayers }) => {
             style={style}
             isDraggable={card.location === 'player'}
             isFaceUp={isFaceUp}
+            dataPlayerHand={card.location === 'player' ? "true" : "false"}
           />
         );
       })}
