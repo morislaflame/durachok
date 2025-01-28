@@ -463,6 +463,7 @@ useLayoutEffect(() => {
 
 const handleTakeCards = () => {
   // Собираем все cardId, которые лежат на столе
+  flipStateRef.current = captureFlipState();
   const tableCardIds = tablePairs.flatMap((pair) => {
     const arr: string[] = [];
     if (pair.attackCardId) arr.push(pair.attackCardId);
@@ -480,9 +481,9 @@ const handleTakeCards = () => {
   });
 
   // Захватываем Flip-состояние "до"
-  takeCardsRef.current = Flip.getState(elements, {
-    props: 'transform, top, left, zIndex',
-  });
+  // takeCardsRef.current = Flip.getState(elements, {
+  //   props: 'transform, top, left, zIndex',
+  // });
 
   // Переводим все карты со стола в руку игрока
   setCards((prev) => {
@@ -517,19 +518,19 @@ const handleTakeCards = () => {
   );
 };
 
-useLayoutEffect(() => {
-  if (takeCardsRef.current) {
-    Flip.from(takeCardsRef.current, {
-      duration: 0.8,
-      ease: 'power2.out',
-      absolute: true,
-      scale: true,
-      onComplete: () => {
-        takeCardsRef.current = null;
-      },
-    });
-  }
-}, [cards]);
+// useLayoutEffect(() => {
+//   if (takeCardsRef.current) {
+//     Flip.from(takeCardsRef.current, {
+//       duration: 0.8,
+//       ease: 'power2.out',
+//       absolute: true,
+//       scale: true,
+//       onComplete: () => {
+//         takeCardsRef.current = null;
+//       },
+//     });
+//   }
+// }, [cards]);
 
 const isTakeVisible = tablePairs.some(
   (p) => p.attackCardId && !p.coverCardId

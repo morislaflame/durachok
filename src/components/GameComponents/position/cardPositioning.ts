@@ -65,6 +65,8 @@ function getDeckCardStyle(indexInGroup: number): CSSProperties {
     left: '-10px',
     transform: 'rotate(20deg)',
     zIndex: 1000 - indexInGroup,
+    width: '45px',
+    height: '65px',
   };
 }
 
@@ -78,6 +80,9 @@ export function getTrumpCardStyle(): CSSProperties {
     left: '-15px',
     transform: 'translate(25px, 30px) rotate(110deg)',
     zIndex: 1,
+    width: '45px',
+    height: '65px',
+    padding: '5px',
   };
 }
 
@@ -94,6 +99,9 @@ function getPlayerCardStyle(indexInGroup: number, totalCards: number): CSSProper
     transform: `translateX(${offsetX + overlap * indexInGroup}px) rotate(${rotationAngle}deg)`,
     transformOrigin: 'bottom center',
     zIndex: 10 + indexInGroup,
+    width: '60px',
+    height: '85px',
+    padding: '10px',
   };
 }
 
@@ -125,6 +133,8 @@ function getOpponentCardStyle(
     left: basePos.left,
     transform: `translateX(${offsetX + overlap * indexInGroup}px) rotate(${rotationAngle}deg)`,
     zIndex: 10 + indexInGroup,
+    width: '40px',
+    height: '60px',
   };
 }
 
@@ -156,6 +166,8 @@ function getTablePairStyle(card: Card): CSSProperties {
       top: `${slotPos.top}%`,
       left: `${slotPos.left}%`,
       zIndex,
+      width: '50px',
+      height: '70px',
     };
   }
   
@@ -172,6 +184,8 @@ function getTablePairStyle(card: Card): CSSProperties {
       left: '90%',
       transform: `translateY(${offsetY}px) rotate(${rotate}deg)`,
       zIndex: 700 + indexInGroup,
+      width: '45px',
+      height: '65px',
     };
   }
   
