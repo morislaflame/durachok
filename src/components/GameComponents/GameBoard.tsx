@@ -355,10 +355,24 @@ const GameBoard: React.FC<GameBoardProps> = ({ numPlayers }) => {
 // ...
 // При нажатии «Бито» — все *покрытые* пары убираем в "discard"
 const handleBeat = () => {
-  // 1. Захватываем Flip-состояние всех карт перед изменением
-  flipStateRef.current = captureFlipState();
+  const coveredCardIds: string[] = [];
+  tablePairs.forEach((pair) => {
+    if (pair.attackCardId && pair.coverCardId) {
+      coveredCardIds.push(pair.attackCardId, pair.coverCardId);
+    }
+  });
+  const elements: HTMLElement[] = [];
+  coveredCardIds.forEach((id) => {
+    const el = document.querySelector(`[data-flip-id="${id}"]`) as HTMLElement | null;
+    if (el) elements.push(el);
+  });
 
-  // 2. Переводим в discard все карты, которые образовали покрытые пары
+  // Захват «старых» координат
+  discardCardsRef.current = Flip.getState(elements, {
+    props: 'transform, top, left, zIndex',
+  });
+
+  // Переводим карты в discard
   setCards((prev) => {
     const newArr = [...prev];
     tablePairs.forEach((pair) => {
@@ -372,19 +386,28 @@ const handleBeat = () => {
     });
     return newArr;
   });
-
-  // 3. Очищаем покрытые пары
+  // Очищаем пары...
   setTablePairs((prev) => {
-    const copy = [...prev];
-    for (let i = 0; i < copy.length; i++) {
-      const { attackCardId, coverCardId } = copy[i];
-      if (attackCardId && coverCardId) {
-        copy[i] = { attackCardId: null, coverCardId: null };
+    return prev.map((p) => {
+      if (p.attackCardId && p.coverCardId) {
+        return { attackCardId: null, coverCardId: null };
       }
-    }
-    return copy;
+      return p;
+    });
   });
 };
+
+useLayoutEffect(() => {
+  if (discardCardsRef.current) {
+    Flip.from(discardCardsRef.current, {
+      duration: 1,
+      ease: 'power2.out',
+      absolute: true,
+      scale: true,
+    });
+    discardCardsRef.current = null;
+  }
+}, [cards]);
 
 
 
