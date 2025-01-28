@@ -7,18 +7,21 @@ import avatarImage from '../../assets/avatar.jpg';
 
 interface PlayerProps {
   onStartGame?: () => void;
-  cards: Card[]; // чтобы узнать сколько у игрока карт, если нужно
+  onBeat?: () => void;               // <--- новая пропса
+  isBeatVisible?: boolean;           // <--- новая пропса
+  cards: Card[];
 }
 
-const Player: React.FC<PlayerProps> = ({ onStartGame, cards }) => {
+const Player: React.FC<PlayerProps> = ({ onStartGame, onBeat, isBeatVisible, cards }) => {
   return (
     <div className={styles.playerContainer}>
       <div className={styles.playerInfo}>
-        {/* Кнопка "Start Game" будет здесь */}
-        <UserActions onStartGame={onStartGame} />
-
+        <UserActions
+          onStartGame={onStartGame}
+          onBeat={onBeat}
+          isBeatVisible={isBeatVisible}
+        />
         <Avatar imageUrl={avatarImage} size="small" alt="Player avatar" />
-        
         <span className={styles.playerName}>Player</span>
         <span className={styles.cardsCount}>Cards: {cards.length}</span>
       </div>

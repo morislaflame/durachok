@@ -8,7 +8,7 @@ export interface Card {
   id: string;
   suit: Suit;
   rank: Rank;
-  location: 'deck' | 'player' | 'opponent' | 'table';
+  location: 'deck' | 'player' | 'opponent' | 'table' | 'discard';
   /** Какой именно оппонент владеет картой. */
   seatIndex?: number;
   /** Позиция на столе. */

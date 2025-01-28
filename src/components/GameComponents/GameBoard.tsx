@@ -2,7 +2,6 @@ import React, { useState, useRef, useEffect, useLayoutEffect } from 'react';
 import gsap from 'gsap';
 import { Draggable } from 'gsap/Draggable';
 import { Flip } from 'gsap/Flip';
-
 import { captureFlipState, animateFlip } from './animations/dealCards';
 import { Card, Suit, Rank, TablePair } from '../../types/types';
 import CardItem from './CardItem';
@@ -37,7 +36,7 @@ function createAllDeck(): Card[] {
       });
     }
   }
-  // Перемешивание
+  // Перемешивание Фишера–Йетса
   for (let i = deck.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
     [deck[i], deck[j]] = [deck[j], deck[i]];
@@ -57,23 +56,29 @@ const GameBoard: React.FC<GameBoardProps> = ({ numPlayers }) => {
 
   // Пары (атака/крышка), изначально все свободны
   const [tablePairs, setTablePairs] = useState<TablePair[]>(
-    () => Array.from({ length: MAX_TABLE_PAIRS }, () => ({
-      attackCardId: null,
-      coverCardId: null,
-    }))
+    () =>
+      Array.from({ length: MAX_TABLE_PAIRS }, () => ({
+        attackCardId: null,
+        coverCardId: null,
+      }))
   );
 
   // Простая логика: сейчас ход «attack» или «defend»
   const [currentTurnRole, setCurrentTurnRole] = useState<'attack' | 'defend'>('attack');
 
-  // ==== refs для анимации ====
+  // refs для анимации
   const flipStateRef = useRef<ReturnType<typeof Flip.getState> | null>(null);
   const newFlipStateRef = useRef<ReturnType<typeof Flip.getState> | null>(null);
   const gameBoardRef = useRef<HTMLDivElement>(null);
-  
 
-  // Draggable-инстансы
+  // Draggable-инстансы, храним по ключу cardId
   const draggableRefs = useRef<Record<string, Draggable>>({});
+
+  // ref для "роли", чтобы не пересоздавать Draggable при её смене
+  const roleRef = useRef<'attack' | 'defend'>('attack');
+  useEffect(() => {
+    roleRef.current = currentTurnRole;
+  }, [currentTurnRole]);
 
   // ==== Инициализация колоды ====
   useEffect(() => {
@@ -88,7 +93,6 @@ const GameBoard: React.FC<GameBoardProps> = ({ numPlayers }) => {
         flipStateRef.current = null;
       });
     }
-    console.log('Flip-анимация cards=', cards);
   }, [cards]);
 
   // ==== Кнопка StartGame (раздача) ====
@@ -138,53 +142,45 @@ const GameBoard: React.FC<GameBoardProps> = ({ numPlayers }) => {
   const opponentCards = cards.filter((c) => c.location === 'opponent');
 
   // ==== Инициализация Draggable для карт в руке игрока ====
-  useLayoutEffect(() => {
-      console.log('useEffect Draggable init: currentTurnRole=', currentTurnRole, 'playerCards=', playerCards);
-    
-      playerCards.forEach((card) => {
-        // Если уже есть Draggable для этой карты - УБЬЁМ и пересоздадим,
-        // чтобы "захватить" актуальное currentTurnRole в колбэках
-        if (draggableRefs.current[card.id]) {
-          console.log('Re-creating Draggable for card:', card.id, 'due to role change');
-          draggableRefs.current[card.id].kill();
-          delete draggableRefs.current[card.id];
+  useEffect(() => {
+    playerCards.forEach((card) => {
+      // Если уже есть Draggable для этой карты - пропускаем
+      if (draggableRefs.current[card.id]) return;
+
+      const el = document.querySelector(`[data-flip-id="${card.id}"]`) as HTMLElement | null;
+      if (!el) return;
+
+      const draggable = Draggable.create(el, {
+        type: 'x,y',
+        onPress: () => {
+          // Исходное состояние для Flip
+          newFlipStateRef.current = Flip.getState(el, {
+            props: 'transform, top, left, zIndex',
+          });
+        },
+        onDragEnd: () => {
+          // Новое состояние
+          flipStateRef.current = Flip.getState(el, {
+            props: 'transform, top, left, zIndex',
+          });
+          handlePlayerCardDrop(card.id, flipStateRef.current!);
+        },
+      })[0];
+
+      draggableRefs.current[card.id] = draggable;
+    });
+
+    // Если карта перестала быть у игрока, убиваем Draggable
+    return () => {
+      Object.keys(draggableRefs.current).forEach((cardId) => {
+        const c = cards.find((cc) => cc.id === cardId);
+        if (c && c.location !== 'player') {
+          draggableRefs.current[cardId].kill();
+          delete draggableRefs.current[cardId];
         }
-    
-        const el = document.querySelector(`[data-flip-id="${card.id}"]`) as HTMLElement | null;
-        if (!el) return;
-    
-        const draggable = Draggable.create(el, {
-          type: 'x,y',
-          onPress: () => {
-           console.log('onPress => newFlipStateRef for card:', card.id, 'role=', currentTurnRole);
-            newFlipStateRef.current = Flip.getState(el, {
-              props: 'transform, zIndex',
-            });
-          },
-          onDragEnd: () => {
-            flipStateRef.current = Flip.getState(el, {
-              props: 'transform, top, left, zIndex',
-            });
-         console.log('onDragEnd => calling handlePlayerCardDrop, card:', card.id, 'role=', currentTurnRole);
-            handlePlayerCardDrop(card.id, flipStateRef.current!);
-          },
-        })[0];
-    
-        draggableRefs.current[card.id] = draggable;
       });
-    
-      // Если карта ушла из руки, убиваем Draggable
-      return () => {
-        Object.keys(draggableRefs.current).forEach((cardId) => {
-          const c = cards.find((cc) => cc.id === cardId);
-          if (c && c.location !== 'player') {
-            draggableRefs.current[cardId].kill();
-            delete draggableRefs.current[cardId];
-          }
-        });
-      };
-    // Обратите внимание, что в зависимости добавлен currentTurnRole
-    }, [playerCards, currentTurnRole]);
+    };
+  }, [playerCards, cards]);
 
   // ==== Обработка окончания перетаскивания ====
   function handlePlayerCardDrop(cardId: string, flipState: ReturnType<typeof Flip.getState>) {
@@ -201,7 +197,10 @@ const GameBoard: React.FC<GameBoardProps> = ({ numPlayers }) => {
       y: rect.top + rect.height / 2,
     };
 
-    if (currentTurnRole === 'attack') {
+    const actualRole = roleRef.current;
+    console.log(`actualRole: ${actualRole}`);
+
+    if (actualRole === 'attack') {
       // Ищем первую свободную пару (attackCardId == null)
       const freeIndex = tablePairs.findIndex((p) => p.attackCardId === null);
       if (freeIndex === -1) {
@@ -221,7 +220,6 @@ const GameBoard: React.FC<GameBoardProps> = ({ numPlayers }) => {
         revertCard(cardId, newFlipStateRef.current);
         return;
       }
-
       // Размещаем карту как "attack"
       placeAttackCard(cardId, freeIndex, flipState);
 
@@ -230,7 +228,7 @@ const GameBoard: React.FC<GameBoardProps> = ({ numPlayers }) => {
       let foundIndex: number | null = null;
       for (let i = 0; i < tablePairs.length; i++) {
         const pair = tablePairs[i];
-        if (!pair.attackCardId || pair.coverCardId) continue; // занята или нет атаки
+        if (!pair.attackCardId || pair.coverCardId) continue; // занята или нет карты атаки
 
         // Коорд. cover-слота
         const { top, left } = TABLE_PAIRS_POSITIONS[i].cover;
@@ -241,10 +239,6 @@ const GameBoard: React.FC<GameBoardProps> = ({ numPlayers }) => {
         const dist = Math.hypot(cardCenter.x - slotPos.x, cardCenter.y - slotPos.y);
         if (dist <= DISTANCE_THRESHOLD) {
           foundIndex = i;
-          console.log(
-            `[DEFEND] i=${i}, attackCardId=${pair.attackCardId}, coverCardId=${pair.coverCardId}, distance=${dist}`
-          );
-          
           break;
         }
       }
@@ -282,13 +276,11 @@ const GameBoard: React.FC<GameBoardProps> = ({ numPlayers }) => {
     pairIndex: number,
     flipState: ReturnType<typeof Flip.getState>
   ) {
-    // Обновляем tablePairs
     setTablePairs((prev) => {
       const copy = [...prev];
       copy[pairIndex].attackCardId = cardId;
       return copy;
     });
-    // Обновляем карту
     setCards((prev) => {
       const arr = [...prev];
       const c = arr.find((x) => x.id === cardId);
@@ -300,13 +292,11 @@ const GameBoard: React.FC<GameBoardProps> = ({ numPlayers }) => {
       return arr;
     });
 
-    // Запускаем анимацию
     Flip.from(flipState, {
       duration: 0.8,
       ease: 'power2.out',
       absolute: true,
       scale: true,
-      
     });
   }
 
@@ -316,7 +306,6 @@ const GameBoard: React.FC<GameBoardProps> = ({ numPlayers }) => {
     pairIndex: number,
     flipState: ReturnType<typeof Flip.getState>
   ) {
-    console.log(`[placeCoverCard] pairIndex=${pairIndex}, card=${cardId}`);
     setTablePairs((prev) => {
       const copy = [...prev];
       copy[pairIndex].coverCardId = cardId;
@@ -352,6 +341,51 @@ const GameBoard: React.FC<GameBoardProps> = ({ numPlayers }) => {
     });
   }
 
+  // ==== Логика для кнопки «Бито» ====
+  // Условие: хотя бы одна пара должна быть атакована,
+  // и при этом все атакованные пары — покрыты (coverCardId != null).
+  const hasAtLeastOneAttack = tablePairs.some((p) => p.attackCardId !== null);
+  const allAttacksCovered = tablePairs.every(
+    (p) => p.attackCardId === null || p.coverCardId !== null
+  );
+  const isBeatVisible = hasAtLeastOneAttack && allAttacksCovered;
+
+// При нажатии «Бито» — все *покрытые* пары убираем в "discard"
+const handleBeat = () => {
+  // 1. Захватываем Flip-состояние всех карт перед изменением
+  flipStateRef.current = Flip.getState(gameBoardRef.current, {
+    props: 'transform, top, left, zIndex',
+  });
+
+  // 2. Переводим в discard все карты, которые образовали покрытые пары
+  setCards((prev) => {
+    const newArr = [...prev];
+    tablePairs.forEach((pair) => {
+      const { attackCardId, coverCardId } = pair;
+      if (attackCardId && coverCardId) {
+        const attackCard = newArr.find((c) => c.id === attackCardId);
+        const coverCard = newArr.find((c) => c.id === coverCardId);
+        if (attackCard) attackCard.location = 'discard';
+        if (coverCard) coverCard.location = 'discard';
+      }
+    });
+    return newArr;
+  });
+
+  // 3. Очищаем покрытые пары
+  setTablePairs((prev) => {
+    const copy = [...prev];
+    for (let i = 0; i < copy.length; i++) {
+      const { attackCardId, coverCardId } = copy[i];
+      if (attackCardId && coverCardId) {
+        copy[i] = { attackCardId: null, coverCardId: null };
+      }
+    }
+    return copy;
+  });
+};
+
+
   // ==== Рендер ====
   return (
     <div className={styles.gameBoard} ref={gameBoardRef}>
@@ -359,8 +393,13 @@ const GameBoard: React.FC<GameBoardProps> = ({ numPlayers }) => {
       {/* Контейнер оппонентов */}
       <OpponentsContainer numPlayers={numPlayers} allOpponentCards={opponentCards} />
 
-      {/* Игрок (кнопка старт, карты) */}
-      <Player onStartGame={handleStartGame} cards={playerCards} />
+      {/* Игрок (кнопка старт, карты, кнопка "Бито") */}
+      <Player
+        onStartGame={handleStartGame}
+        cards={playerCards}
+        onBeat={handleBeat}
+        isBeatVisible={isBeatVisible}
+      />
 
       {/* Тестовые кнопки: смена роли хода */}
       <div style={{ position: 'absolute', top: 10, right: 10, color: 'white' }}>
@@ -369,7 +408,7 @@ const GameBoard: React.FC<GameBoardProps> = ({ numPlayers }) => {
         <button onClick={() => setCurrentTurnRole('defend')}>Defend</button>
       </div>
 
-      {/* Отрисовка слотов-пар (attack/cover). */}
+      {/* Отрисовка слотов-пар (attack/cover) */}
       {tablePairs.map((pair, i) => {
         const pos = TABLE_PAIRS_POSITIONS[i];
         if (!pos) return null;
@@ -427,11 +466,12 @@ const GameBoard: React.FC<GameBoardProps> = ({ numPlayers }) => {
       {cards.map((card) => {
         let style: React.CSSProperties;
         if (card.id === trumpCardId && card.location === 'deck') {
-          style = getTrumpCardStyle(); 
+          style = getTrumpCardStyle();
         } else {
           style = getCardStyle(card, cards, numPlayers);
         }
 
+        // Открываем карту, если у игрока или на столе (или это козырная)
         const isFaceUp =
           card.location === 'player' ||
           card.location === 'table' ||
@@ -445,7 +485,6 @@ const GameBoard: React.FC<GameBoardProps> = ({ numPlayers }) => {
             style={style}
             isDraggable={card.location === 'player'}
             isFaceUp={isFaceUp}
-            dataPlayerHand={card.location === 'player' ? "true" : "false"}
           />
         );
       })}

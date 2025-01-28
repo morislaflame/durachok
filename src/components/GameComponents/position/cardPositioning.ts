@@ -47,6 +47,9 @@ export function getCardStyle(
     case 'table':
         return getTablePairStyle(card);
 
+    case 'discard':
+        return getDiscardCardStyle(indexInGroup);
+
     default:
       return {};
   }
@@ -153,6 +156,22 @@ function getTablePairStyle(card: Card): CSSProperties {
       top: `${slotPos.top}%`,
       left: `${slotPos.left}%`,
       zIndex,
+    };
+  }
+  
+
+  function getDiscardCardStyle(indexInGroup: number): CSSProperties {
+    // Каждая новая карта будет смещена вниз на 8px
+    // и дополнительно чуть повёрнута, чтобы показать небольшой "веер" в сбросе.
+    const offsetY = indexInGroup * 8;
+    const rotate = indexInGroup * 3;
+  
+    return {
+      position: 'absolute',
+      top: '30%',
+      right: '-10px',
+      transform: `translateY(${offsetY}px) rotate(${rotate}deg)`,
+      zIndex: 700 + indexInGroup,
     };
   }
   
