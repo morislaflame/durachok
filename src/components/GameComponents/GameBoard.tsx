@@ -397,6 +397,57 @@ const handleBeat = () => {
   });
 };
 
+const handleDealAfterBeat = () => {
+  console.log('handleDealAfterBeat: раздаём недостающие карты');
+
+  flipStateRef.current = captureFlipState();
+  setCards((prev) => {
+    const updated = [...prev];
+
+    if (!updated.length) return updated;
+
+    // Ищем «обычные» карты в колоде (кроме козырной, которая последняя)
+    // Т. е. trumpCardId мы трогать не будем — она так и остаётся в колоде "лицом".
+    // Но может быть, что колода уже пуста.
+    const deckCards = updated.filter(
+      (c) => c.location === 'deck' 
+    );
+    let deckPos = 0;
+
+    // Добираем игроку:
+    const playerHandCount = updated.filter((c) => c.location === 'player').length;
+    const needForPlayer = 6 - playerHandCount;
+    if (needForPlayer > 0) {
+      for (let i = 0; i < needForPlayer; i++) {
+        if (deckPos >= deckCards.length) break;
+        deckCards[deckPos].location = 'player';
+        deckPos++;
+      }
+    }
+
+    // Добираем оппонентам по очереди
+    const numOpponents = numPlayers - 1;
+    for (let seat = 0; seat < numOpponents; seat++) {
+      const oppCount = updated.filter(
+        (c) => c.location === 'opponent' && c.seatIndex === seat
+      ).length;
+      const needForOpp = 6 - oppCount;
+      if (needForOpp > 0) {
+        for (let i = 0; i < needForOpp; i++) {
+          if (deckPos >= deckCards.length) break;
+          deckCards[deckPos].location = 'opponent';
+          deckCards[deckPos].seatIndex = seat;
+          deckPos++;
+        }
+      }
+    }
+
+    return updated;
+  });
+
+  setCurrentTurnRole('attack');
+};
+
 useLayoutEffect(() => {
   if (discardCardsRef.current) {
     Flip.from(discardCardsRef.current, {
@@ -404,13 +455,13 @@ useLayoutEffect(() => {
       ease: 'power2.out',
       absolute: true,
       scale: true,
+      onComplete: () => {
+        discardCardsRef.current = null;
+        handleDealAfterBeat()
+      },
     });
-    discardCardsRef.current = null;
   }
 }, [cards]);
-
-
-
 
   // ==== Рендер ====
   return (
