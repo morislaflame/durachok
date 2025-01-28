@@ -71,6 +71,7 @@ const GameBoard: React.FC<GameBoardProps> = ({ numPlayers }) => {
   const newFlipStateRef = useRef<ReturnType<typeof Flip.getState> | null>(null);
   const gameBoardRef = useRef<HTMLDivElement>(null);
   const discardCardsRef = useRef<ReturnType<typeof Flip.getState> | null>(null);
+  const takeCardsRef = useRef<ReturnType<typeof Flip.getState> | null>(null);
 
   // Draggable-инстансы, храним по ключу cardId
   const draggableRefs = useRef<Record<string, Draggable>>({});
@@ -406,9 +407,6 @@ const handleDealAfterBeat = () => {
 
     if (!updated.length) return updated;
 
-    // Ищем «обычные» карты в колоде (кроме козырной, которая последняя)
-    // Т. е. trumpCardId мы трогать не будем — она так и остаётся в колоде "лицом".
-    // Но может быть, что колода уже пуста.
     const deckCards = updated.filter(
       (c) => c.location === 'deck' 
     );
@@ -463,6 +461,79 @@ useLayoutEffect(() => {
   }
 }, [cards]);
 
+const handleTakeCards = () => {
+  // Собираем все cardId, которые лежат на столе
+  const tableCardIds = tablePairs.flatMap((pair) => {
+    const arr: string[] = [];
+    if (pair.attackCardId) arr.push(pair.attackCardId);
+    if (pair.coverCardId) arr.push(pair.coverCardId);
+    return arr;
+  });
+
+  if (tableCardIds.length === 0) return;
+
+  // Находим соответствующие элементы DOM
+  const elements: HTMLElement[] = [];
+  tableCardIds.forEach((id) => {
+    const el = document.querySelector(`[data-flip-id="${id}"]`) as HTMLElement | null;
+    if (el) elements.push(el);
+  });
+
+  // Захватываем Flip-состояние "до"
+  takeCardsRef.current = Flip.getState(elements, {
+    props: 'transform, top, left, zIndex',
+  });
+
+  // Переводим все карты со стола в руку игрока
+  setCards((prev) => {
+    const newArr = [...prev];
+    tablePairs.forEach((pair) => {
+      if (pair.attackCardId) {
+        const c = newArr.find((x) => x.id === pair.attackCardId);
+        if (c) {
+          c.location = 'player';
+          c.tablePairIndex = undefined;
+          c.tableRole = undefined;
+        }
+      }
+      if (pair.coverCardId) {
+        const c = newArr.find((x) => x.id === pair.coverCardId);
+        if (c) {
+          c.location = 'player';
+          c.tablePairIndex = undefined;
+          c.tableRole = undefined;
+        }
+      }
+    });
+    return newArr;
+  });
+
+  // Очищаем пары
+  setTablePairs((prev) =>
+    prev.map(() => ({
+      attackCardId: null,
+      coverCardId: null,
+    }))
+  );
+};
+
+useLayoutEffect(() => {
+  if (takeCardsRef.current) {
+    Flip.from(takeCardsRef.current, {
+      duration: 0.8,
+      ease: 'power2.out',
+      absolute: true,
+      scale: true,
+      onComplete: () => {
+        takeCardsRef.current = null;
+      },
+    });
+  }
+}, [cards]);
+
+const isTakeVisible = tablePairs.some(
+  (p) => p.attackCardId && !p.coverCardId
+);
   // ==== Рендер ====
   return (
     <div className={styles.gameBoard} ref={gameBoardRef}>
@@ -476,6 +547,8 @@ useLayoutEffect(() => {
         cards={playerCards}
         onBeat={handleBeat}
         isBeatVisible={isBeatVisible}
+        onTakeCards={handleTakeCards}
+        isTakeVisible={isTakeVisible}
       />
 
       {/* Тестовые кнопки: смена роли хода */}

@@ -10,9 +10,11 @@ interface PlayerProps {
   onBeat?: () => void;               // <--- новая пропса
   isBeatVisible?: boolean;           // <--- новая пропса
   cards: Card[];
+  onTakeCards?: () => void;
+  isTakeVisible?: boolean;
 }
 
-const Player: React.FC<PlayerProps> = ({ onStartGame, onBeat, isBeatVisible, cards }) => {
+const Player: React.FC<PlayerProps> = ({ onStartGame, onBeat, isBeatVisible, cards, onTakeCards, isTakeVisible }) => {
   return (
     <div className={styles.playerContainer}>
       <div className={styles.playerInfo}>
@@ -20,6 +22,8 @@ const Player: React.FC<PlayerProps> = ({ onStartGame, onBeat, isBeatVisible, car
           onStartGame={onStartGame}
           onBeat={onBeat}
           isBeatVisible={isBeatVisible}
+          onTakeCards={onTakeCards}
+          isTakeVisible={isTakeVisible}
         />
         <Avatar imageUrl={avatarImage} size="small" alt="Player avatar" />
         <span className={styles.playerName}>Player</span>
