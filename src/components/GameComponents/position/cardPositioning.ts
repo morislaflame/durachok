@@ -169,7 +169,7 @@ function getTablePairStyle(card: Card): CSSProperties {
     return {
       position: 'absolute',
       top: '30%',
-      right: '-10px',
+      left: '90%',
       transform: `translateY(${offsetY}px) rotate(${rotate}deg)`,
       zIndex: 700 + indexInGroup,
     };

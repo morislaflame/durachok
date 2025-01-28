@@ -70,6 +70,7 @@ const GameBoard: React.FC<GameBoardProps> = ({ numPlayers }) => {
   const flipStateRef = useRef<ReturnType<typeof Flip.getState> | null>(null);
   const newFlipStateRef = useRef<ReturnType<typeof Flip.getState> | null>(null);
   const gameBoardRef = useRef<HTMLDivElement>(null);
+  const discardCardsRef = useRef<ReturnType<typeof Flip.getState> | null>(null);
 
   // Draggable-инстансы, храним по ключу cardId
   const draggableRefs = useRef<Record<string, Draggable>>({});
@@ -92,6 +93,7 @@ const GameBoard: React.FC<GameBoardProps> = ({ numPlayers }) => {
       animateFlip(flipStateRef.current, () => {
         flipStateRef.current = null;
       });
+      console.log('animateFlip');
     }
   }, [cards]);
 
@@ -350,12 +352,11 @@ const GameBoard: React.FC<GameBoardProps> = ({ numPlayers }) => {
   );
   const isBeatVisible = hasAtLeastOneAttack && allAttacksCovered;
 
+// ...
 // При нажатии «Бито» — все *покрытые* пары убираем в "discard"
 const handleBeat = () => {
   // 1. Захватываем Flip-состояние всех карт перед изменением
-  flipStateRef.current = Flip.getState(gameBoardRef.current, {
-    props: 'transform, top, left, zIndex',
-  });
+  flipStateRef.current = captureFlipState();
 
   // 2. Переводим в discard все карты, которые образовали покрытые пары
   setCards((prev) => {
@@ -384,6 +385,8 @@ const handleBeat = () => {
     return copy;
   });
 };
+
+
 
 
   // ==== Рендер ====
