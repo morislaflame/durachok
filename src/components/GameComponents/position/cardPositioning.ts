@@ -82,7 +82,6 @@ export function getTrumpCardStyle(): CSSProperties {
     zIndex: 1,
     width: '45px',
     height: '65px',
-    padding: '5px',
   };
 }
 
@@ -101,7 +100,6 @@ function getPlayerCardStyle(indexInGroup: number, totalCards: number): CSSProper
     zIndex: 10 + indexInGroup,
     width: '60px',
     height: '85px',
-    padding: '10px',
   };
 }
 
@@ -133,8 +131,8 @@ function getOpponentCardStyle(
     left: basePos.left,
     transform: `translateX(${offsetX + overlap * indexInGroup}px) rotate(${rotationAngle}deg)`,
     zIndex: 10 + indexInGroup,
-    width: '40px',
-    height: '60px',
+    width: '45px',
+    height: '65px',
   };
 }
 
@@ -186,6 +184,9 @@ function getTablePairStyle(card: Card): CSSProperties {
       zIndex: 700 + indexInGroup,
       width: '45px',
       height: '65px',
+      minWidth: '45px',
+      minHeight: '65px',
     };
   }
   
+

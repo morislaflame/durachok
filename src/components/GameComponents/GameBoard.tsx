@@ -66,12 +66,17 @@ const GameBoard: React.FC<GameBoardProps> = ({ numPlayers }) => {
   // Простая логика: сейчас ход «attack» или «defend»
   const [currentTurnRole, setCurrentTurnRole] = useState<'attack' | 'defend'>('attack');
 
+  const tablePairsRef = useRef<TablePair[]>([]);
+  useEffect(() => {
+    tablePairsRef.current = tablePairs;
+    console.log("tablePairs изменился в useEffect:", tablePairs);
+  }, [tablePairs]);
+
   // refs для анимации
   const flipStateRef = useRef<ReturnType<typeof Flip.getState> | null>(null);
   const newFlipStateRef = useRef<ReturnType<typeof Flip.getState> | null>(null);
   const gameBoardRef = useRef<HTMLDivElement>(null);
   const discardCardsRef = useRef<ReturnType<typeof Flip.getState> | null>(null);
-  const takeCardsRef = useRef<ReturnType<typeof Flip.getState> | null>(null);
 
   // Draggable-инстансы, храним по ключу cardId
   const draggableRefs = useRef<Record<string, Draggable>>({});
@@ -203,9 +208,12 @@ const GameBoard: React.FC<GameBoardProps> = ({ numPlayers }) => {
     const actualRole = roleRef.current;
     console.log(`actualRole: ${actualRole}`);
 
+    const actualTablePairs = tablePairsRef.current;
+
     if (actualRole === 'attack') {
       // Ищем первую свободную пару (attackCardId == null)
-      const freeIndex = tablePairs.findIndex((p) => p.attackCardId === null);
+      const freeIndex = actualTablePairs.findIndex((p) => p.attackCardId === null);
+      console.log(`Попытка положить карту ${cardId} в слот атаки: ${freeIndex}`);
       if (freeIndex === -1) {
         console.log('Нет свободных слотов для атаки');
         revertCard(cardId, newFlipStateRef.current);
@@ -229,9 +237,10 @@ const GameBoard: React.FC<GameBoardProps> = ({ numPlayers }) => {
     } else {
       // Ход defend
       let foundIndex: number | null = null;
-      for (let i = 0; i < tablePairs.length; i++) {
-        const pair = tablePairs[i];
+      for (let i = 0; i < actualTablePairs.length; i++) {
+        const pair = actualTablePairs[i];
         if (!pair.attackCardId || pair.coverCardId) continue; // занята или нет карты атаки
+
 
         // Коорд. cover-слота
         const { top, left } = TABLE_PAIRS_POSITIONS[i].cover;
@@ -245,6 +254,7 @@ const GameBoard: React.FC<GameBoardProps> = ({ numPlayers }) => {
           break;
         }
       }
+      console.log(`Попытка положить карту ${cardId} в слот защиты: ${foundIndex}`);
       if (foundIndex === null) {
         console.log('Нет подходящего cover-слота рядом');
         revertCard(cardId, newFlipStateRef.current);
@@ -252,7 +262,7 @@ const GameBoard: React.FC<GameBoardProps> = ({ numPlayers }) => {
       }
 
       // Проверяем, бьёт ли карта
-      const attackId = tablePairs[foundIndex].attackCardId;
+      const attackId = actualTablePairs[foundIndex].attackCardId;
       if (!attackId) {
         revertCard(cardId, newFlipStateRef.current);
         return;
@@ -283,7 +293,9 @@ const GameBoard: React.FC<GameBoardProps> = ({ numPlayers }) => {
       const copy = [...prev];
       copy[pairIndex].attackCardId = cardId;
       return copy;
+      
     });
+    console.log("tablePairs после setTablePairs после placeAttackCard:", tablePairs);
     setCards((prev) => {
       const arr = [...prev];
       const c = arr.find((x) => x.id === cardId);
@@ -314,6 +326,7 @@ const GameBoard: React.FC<GameBoardProps> = ({ numPlayers }) => {
       copy[pairIndex].coverCardId = cardId;
       return copy;
     });
+    console.log("tablePairs после setTablePairs после placeCoverCard:", tablePairs);
     setCards((prev) => {
       const arr = [...prev];
       const c = arr.find((x) => x.id === cardId);
@@ -347,17 +360,19 @@ const GameBoard: React.FC<GameBoardProps> = ({ numPlayers }) => {
   // ==== Логика для кнопки «Бито» ====
   // Условие: хотя бы одна пара должна быть атакована,
   // и при этом все атакованные пары — покрыты (coverCardId != null).
-  const hasAtLeastOneAttack = tablePairs.some((p) => p.attackCardId !== null);
-  const allAttacksCovered = tablePairs.every(
+  const hasAtLeastOneAttack = tablePairsRef.current.some((p) => p.attackCardId !== null);
+  const allAttacksCovered = tablePairsRef.current.every(
     (p) => p.attackCardId === null || p.coverCardId !== null
   );
+
   const isBeatVisible = hasAtLeastOneAttack && allAttacksCovered;
 
 // ...
 // При нажатии «Бито» — все *покрытые* пары убираем в "discard"
 const handleBeat = () => {
+  console.log('Очистка слотов при "бито"');
   const coveredCardIds: string[] = [];
-  tablePairs.forEach((pair) => {
+  tablePairsRef.current.forEach((pair) => {
     if (pair.attackCardId && pair.coverCardId) {
       coveredCardIds.push(pair.attackCardId, pair.coverCardId);
     }
@@ -376,7 +391,7 @@ const handleBeat = () => {
   // Переводим карты в discard
   setCards((prev) => {
     const newArr = [...prev];
-    tablePairs.forEach((pair) => {
+    tablePairsRef.current.forEach((pair) => {
       const { attackCardId, coverCardId } = pair;
       if (attackCardId && coverCardId) {
         const attackCard = newArr.find((c) => c.id === attackCardId);
@@ -391,12 +406,15 @@ const handleBeat = () => {
   setTablePairs((prev) => {
     return prev.map((p) => {
       if (p.attackCardId && p.coverCardId) {
-        return { attackCardId: null, coverCardId: null };
+          return { attackCardId: null, coverCardId: null };
       }
       return p;
+
     });
   });
+  console.log("tablePairs после setTablePairs после handleBeat:", tablePairs);
 };
+
 
 const handleDealAfterBeat = () => {
   console.log('handleDealAfterBeat: раздаём недостающие карты');
@@ -462,9 +480,10 @@ useLayoutEffect(() => {
 }, [cards]);
 
 const handleTakeCards = () => {
+  console.log('Очистка слотов при "взять"');
   // Собираем все cardId, которые лежат на столе
   flipStateRef.current = captureFlipState();
-  const tableCardIds = tablePairs.flatMap((pair) => {
+  const tableCardIds = tablePairsRef.current.flatMap((pair) => {
     const arr: string[] = [];
     if (pair.attackCardId) arr.push(pair.attackCardId);
     if (pair.coverCardId) arr.push(pair.coverCardId);
@@ -488,7 +507,7 @@ const handleTakeCards = () => {
   // Переводим все карты со стола в руку игрока
   setCards((prev) => {
     const newArr = [...prev];
-    tablePairs.forEach((pair) => {
+    tablePairsRef.current.forEach((pair) => {
       if (pair.attackCardId) {
         const c = newArr.find((x) => x.id === pair.attackCardId);
         if (c) {
@@ -516,7 +535,10 @@ const handleTakeCards = () => {
       coverCardId: null,
     }))
   );
+  console.log("tablePairs после setTablePairs после handleTakeCards:", tablePairs);
 };
+
+
 
 // useLayoutEffect(() => {
 //   if (takeCardsRef.current) {

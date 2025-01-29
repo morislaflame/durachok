@@ -14,6 +14,7 @@ interface CardItemProps {
   dataPlayerHand?: string;
 }
 
+
 const CardItem: React.FC<CardItemProps> = React.memo(
   ({ card, onClick, style, isDraggable = false, isFaceUp = false, dataPlayerHand }) => {
     return (
