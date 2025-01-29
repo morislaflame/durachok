@@ -72,6 +72,11 @@ const GameBoard: React.FC<GameBoardProps> = ({ numPlayers }) => {
     console.log("tablePairs изменился в useEffect:", tablePairs);
   }, [tablePairs]);
 
+  const cardsRef = useRef<Card[]>([]);
+    useEffect(() => {
+      cardsRef.current = cards;
+    }, [cards]);
+
   // refs для анимации
   const flipStateRef = useRef<ReturnType<typeof Flip.getState> | null>(null);
   const newFlipStateRef = useRef<ReturnType<typeof Flip.getState> | null>(null);
@@ -199,7 +204,6 @@ const GameBoard: React.FC<GameBoardProps> = ({ numPlayers }) => {
 
     const rect = el.getBoundingClientRect();
     const gameRect = gameBoardRef.current.getBoundingClientRect();
-    // Центр карты
     const cardCenter = {
       x: rect.left + rect.width / 2,
       y: rect.top + rect.height / 2,
@@ -231,6 +235,32 @@ const GameBoard: React.FC<GameBoardProps> = ({ numPlayers }) => {
         revertCard(cardId, newFlipStateRef.current);
         return;
       }
+
+      const currentCard = cardsRef.current.find(c => c.id === cardId);
+        if (!currentCard) {
+          revertCard(cardId, newFlipStateRef.current);
+          return;
+        }
+
+        // Собираем все ранги на столе
+    const existingRanks = new Set<Rank>();
+    actualTablePairs.forEach(pair => {
+      if (pair.attackCardId) {
+        const attackCard = cardsRef.current.find(c => c.id === pair.attackCardId);
+        if (attackCard) existingRanks.add(attackCard.rank);
+      }
+      if (pair.coverCardId) {
+        const coverCard = cardsRef.current.find(c => c.id === pair.coverCardId);
+        if (coverCard) existingRanks.add(coverCard.rank);
+      }
+    });
+
+    // Если есть карты на столе и текущий ранг не совпадает с существующими - отмена
+    if (existingRanks.size > 0 && !existingRanks.has(currentCard.rank)) {
+      console.log('Можно подкидывать только карты существующих значений на столе');
+      revertCard(cardId, newFlipStateRef.current);
+      return;
+    }
       // Размещаем карту как "attack"
       placeAttackCard(cardId, freeIndex, flipState);
 
