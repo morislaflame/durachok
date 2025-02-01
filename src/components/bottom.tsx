@@ -3,12 +3,16 @@ import {PlayIcon} from "./icons/play.tsx";
 import {PlusIcon} from "./icons/plus.tsx";
 import {useNavigate} from "react-router";
 
-export const Bottom = () => {
+
+
+interface Props{
+    onQuickPlay: () => void
+}
+
+export const Bottom = ({onQuickPlay}: Props) => {
     const nav = useNavigate()
 
-    const onPlay = () => {
-        nav('/game')
-    }
+
     const onCreate = () => {
         nav('/create')
     }
@@ -16,7 +20,7 @@ export const Bottom = () => {
     return (
         <Container>
             <Content>
-                <SecondaryButton onClick={onPlay}>
+                <SecondaryButton onClick={onQuickPlay}>
                     <PlayIcon/>
                     <span>
                     Быстрая игра

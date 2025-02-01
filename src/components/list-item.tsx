@@ -1,18 +1,27 @@
 import styled from "styled-components";
 import {Table2Icon} from "./icons/table/2.tsx";
 import {PlayIcon} from "./icons/play.tsx";
+import {Game} from "../api/model.ts";
+import {leaveGame} from "../api/requests/game.tsx";
 
-export const ListItem = () => {
+
+interface Props{
+    game: Game
+    onItem: (gameId: number) => void
+}
+
+export const ListItem = ({game,onItem}: Props) => {
     return (
         <Container>
             <Table2Icon/>
             <Middle>
                 <Name>
-                    Пати нубов
+                    Пати нубов ({game?.id})
                 </Name>
                 <MiddleRow>
                     <Span>
-                        Игроки <Span style={{color:'#FFF'}}>2</Span> / 6
+                        Игроки <Span style={{color:'#FFF'}}>
+                        {game?.players?.length || 0}</Span> / {game?.maxPlayers}
                     </Span>
                     <Span>
                         •
@@ -22,8 +31,11 @@ export const ListItem = () => {
                     </Span>
                 </MiddleRow>
             </Middle>
-            <PlayButton>
+            <PlayButton  onClick={() => game && onItem(game.id)}>
                 <SPlayIcon/>
+            </PlayButton>
+            <PlayButton onClick={leaveGame}>
+                Leave
             </PlayButton>
         </Container>
     )

@@ -3,8 +3,32 @@ import {Header} from "../components/header.tsx";
 import {ListItem} from "../components/list-item.tsx";
 import {RefreshIcon} from "../components/icons/refresh.tsx";
 import {Bottom} from "../components/bottom.tsx";
+import {joinGame, quickGame, useGame} from "../api/requests/game.tsx";
+import {useNavigate} from "react-router";
 
 export const MainView = () => {
+    const nav = useNavigate()
+
+
+    const {data} = useGame({
+        limit: 10,
+    })
+
+    const onItemClick = async (gameId: number) => {
+        const response = await joinGame({gameId})
+        if (response.id) {
+            nav(`/game/${gameId}`)
+        }
+    }
+
+
+    const onQuickGame = async () => {
+        const response = await quickGame({players: 2})
+        if (response.id) {
+            nav(`/game/${response.id}`)
+        }
+    }
+
     return (
         <Container>
             <Header name="John Doe" games={5} value={100} secondValue={200}/>
@@ -19,12 +43,15 @@ export const MainView = () => {
                     </Refresh>
                 </Row>
                 <List>
-                    {
-                        [0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map((i) => <ListItem key={i}/>)
-                    }
+                    {data?.map((page) => page.items.map((game) => <ListItem
+                        onItem={onItemClick}
+                        game={game} key={game.id}/>))}
                 </List>
+                <ListItem
+                    onItem={onItemClick}
+             />
             </Content>
-            <Bottom/>
+            <Bottom onQuickPlay={onQuickGame}/>
         </Container>
     )
 }
