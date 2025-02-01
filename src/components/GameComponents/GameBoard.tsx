@@ -34,7 +34,7 @@ interface GameBoardProps {
 }
 
 const GameBoard: React.FC<GameBoardProps> = ({ rules = {} }) => {
-  // Объединяем правила
+  // Объединяем правила (если не заданы, используются дефолтные)
   const mergedRules: GameRules = {
     maxTablePairs: rules.maxTablePairs || 6,
     distanceThreshold: rules.distanceThreshold || 200,
@@ -58,7 +58,7 @@ const GameBoard: React.FC<GameBoardProps> = ({ rules = {} }) => {
   const [socket, setSocket] = useState<WebSocket | null>(null);
   const [numPlayers, setNumPlayers] = useState<number>(0);
 
-  // Ссылки для хранения состояния (анимация, валидация и т.д.)
+  // Ссылки для анимации и проверки
   const gameState = useRef<GameState | null>(null);
   const tablePairsRef = useRef<TablePair[]>(tablePairs);
   const cardsRef = useRef<Card[]>(cards);
@@ -68,14 +68,16 @@ const GameBoard: React.FC<GameBoardProps> = ({ rules = {} }) => {
   const discardCardsRef = useRef<ReturnType<typeof Flip.getState> | null>(null);
   const draggableRefs = useRef<Record<string, Draggable>>({});
   const roleRef = useRef<'attack' | 'defend'>(currentTurnRole);
+  
+  // ref для хранения id текущего игрока
+  const myIdRef = useRef<string>("");
 
   const { id: gameId } = useParams<{ id: string }>();
 
-  // Мапа для стабильных id – каждому "групповому ключу" назначается постоянный id
+  // Маппинг для стабильных id – каждому "групповому ключу" назначается постоянный id
   const cardIdMappingRef = useRef<Map<string, string>>(new Map());
   const nextCardIdRef = useRef<number>(0);
 
-  // Обновляем ссылки при изменении состояния
   useEffect(() => {
     tablePairsRef.current = tablePairs;
   }, [tablePairs]);
@@ -114,7 +116,7 @@ const GameBoard: React.FC<GameBoardProps> = ({ rules = {} }) => {
   };
 
   /**
-   * Возвращает стабильный id по ключу.
+   * Возвращает стабильный id для карты по ключу.
    */
   const getStableCardId = (key: string): string => {
     if (cardIdMappingRef.current.has(key)) {
@@ -128,15 +130,17 @@ const GameBoard: React.FC<GameBoardProps> = ({ rules = {} }) => {
 
   /**
    * Обновление состояния игры по данным сокета.
-   * Сначала формируется финальный список карточек, затем обновляется состояние:
-   * – сначала все карты получают location "deck"
-   * – затем (через два вызова requestAnimationFrame) состояние обновляется до финальных значений.
+   *
+   * Сначала формируется финальный список карточек, затем состояние обновляется так, что
+   * сначала все карты получают location "deck" (начальное состояние для фиксации Flip),
+   * а затем (через два requestAnimationFrame) состояние обновляется до финальных значений.
    */
   const applySocketGameState = (socketData: GameState) => {
     const { state, cards: myCards } = socketData.data;
     const { deck, players, table } = state;
     const newCards: Card[] = [];
     const myId = socketData.user_id.toString();
+    myIdRef.current = myId; // сохраняем id текущего игрока
 
     // 1. Колода
     deck.forEach((cardStr, index) => {
@@ -145,7 +149,7 @@ const GameBoard: React.FC<GameBoardProps> = ({ rules = {} }) => {
       newCards.push({
         id: getStableCardId(key),
         ...parsed,
-        location: 'deck', // финальное значение, которое обновится ниже
+        location: 'deck',
       });
     });
 
@@ -180,7 +184,7 @@ const GameBoard: React.FC<GameBoardProps> = ({ rules = {} }) => {
     });
 
     // 4. Карты на столе
-    if (Array.isArray(table)) {
+    if (Array.isArray(table) && table.length > 0) {
       const newTablePairs: TablePair[] = [];
       table.forEach((pair: any, pairIndex: number) => {
         if (pair.attacking && pair.attacking.card) {
@@ -217,9 +221,17 @@ const GameBoard: React.FC<GameBoardProps> = ({ rules = {} }) => {
         });
       });
       setTablePairs(newTablePairs);
+    } else {
+      // Если table пустой, оставляем стандартное количество слотов
+      setTablePairs(
+        Array.from({ length: mergedRules.maxTablePairs }, () => ({
+          attackCardId: null,
+          coverCardId: null,
+        }))
+      );
     }
 
-    // 5. Определяем козырь
+    // 5. Определяем козырь – берем последнюю карту из колоды
     const deckCards = newCards.filter((c) => c.location === 'deck');
     if (deckCards.length > 0) {
       const trumpCard = deckCards[deckCards.length - 1];
@@ -231,9 +243,7 @@ const GameBoard: React.FC<GameBoardProps> = ({ rules = {} }) => {
     const allDeckCards = newCards.map((card) => ({ ...card, location: 'deck' }));
     flipStateRef.current = captureFlipState();
     setCards(allDeckCards);
-
-    // Затем, используя двойной requestAnimationFrame (чтобы гарантировать рендеринг между обновлениями),
-    // обновляем состояние до финальных значений.
+    // Затем, используя двойной requestAnimationFrame, обновляем состояние до финальных значений
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
         flipStateRef.current = captureFlipState();
@@ -247,25 +257,22 @@ const GameBoard: React.FC<GameBoardProps> = ({ rules = {} }) => {
     const token = localStorage.getItem('token');
     const ws = new WebSocket(`wss://durak-back.1k.games/api/v1/game/${gameId}/ws?token=${token}`);
     setSocket(ws);
-
     ws.onmessage = (event) => {
       const data = JSON.parse(event.data) as GameState;
-      console.log('WebSocket message:', data);
       gameState.current = data;
       setNumPlayers(data.data.state.players.length);
       applySocketGameState(data);
+      console.log(data);
     };
-
     ws.onerror = (error) => {
       console.error('WebSocket error:', error);
     };
-
     return () => {
       ws.close();
     };
   }, [gameId]);
 
-  // Запуск Flip-анимации при изменении состояния карт
+  // Запуск Flip-анимации при изменении состояния карточек
   useLayoutEffect(() => {
     if (flipStateRef.current) {
       animateFlip(flipStateRef.current, () => {
@@ -293,7 +300,6 @@ const GameBoard: React.FC<GameBoardProps> = ({ rules = {} }) => {
       })[0];
       draggableRefs.current[card.id] = draggable;
     });
-
     return () => {
       Object.keys(draggableRefs.current).forEach((cardId) => {
         const c = cards.find((cc) => cc.id === cardId);
@@ -305,7 +311,7 @@ const GameBoard: React.FC<GameBoardProps> = ({ rules = {} }) => {
     };
   }, [cards]);
 
-  // Функции валидации, обработки дропа, размещения карт и т.д.
+  // Функции валидации (оставляем их без изменений)
   const validateAttack = (
     card: Card,
     freeIndex: number,
@@ -316,14 +322,12 @@ const GameBoard: React.FC<GameBoardProps> = ({ rules = {} }) => {
       tableCards: cardsRef.current.filter((c) => c.location === 'table'),
       trumpSuit,
     };
-
     const slotPos = calculateSlotPosition(freeIndex, 'attack');
     const slotContext: SlotValidationContext = {
       cardPosition: cardCenter,
       slotPosition: slotPos,
       maxDistance: mergedRules.distanceThreshold,
     };
-
     return {
       attackValid: mergedRules.attackRules.every((r) => r.validator(attackContext)),
       slotValid: mergedRules.slotRules.every((r) => r.validator(slotContext)),
@@ -341,7 +345,6 @@ const GameBoard: React.FC<GameBoardProps> = ({ rules = {} }) => {
       defendingCard,
       trumpSuit,
     };
-
     let slotValid = true;
     if (cardCenter) {
       const slotPos = calculateSlotPosition(slotIndex, 'cover');
@@ -352,7 +355,6 @@ const GameBoard: React.FC<GameBoardProps> = ({ rules = {} }) => {
       };
       slotValid = mergedRules.slotRules.every((r) => r.validator(slotContext));
     }
-
     const defendValid = mergedRules.defendRules.every((r) => r.validator(defendContext));
     return { defendValid, slotValid };
   };
@@ -366,6 +368,7 @@ const GameBoard: React.FC<GameBoardProps> = ({ rules = {} }) => {
     };
   };
 
+  // Обработка дропа карты игрока (с проверками расстояния и анимацией)
   const handlePlayerCardDrop = (
     cardId: string,
     flipState: ReturnType<typeof Flip.getState>
@@ -375,11 +378,10 @@ const GameBoard: React.FC<GameBoardProps> = ({ rules = {} }) => {
     if (!el) return;
     const rect = el.getBoundingClientRect();
     const cardCenter = { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
-    const actualRole = roleRef.current;
     const currentCard = cardsRef.current.find((c) => c.id === cardId);
     if (!currentCard) return;
 
-    if (actualRole === 'attack') {
+    if (currentTurnRole === 'attack') {
       const freeIndex = tablePairsRef.current.findIndex((p) => p.attackCardId === null);
       if (freeIndex === -1) {
         revertCard(cardId, newFlipStateRef.current);
@@ -426,6 +428,7 @@ const GameBoard: React.FC<GameBoardProps> = ({ rules = {} }) => {
     }
   };
 
+  // Функция выкладки карты для атаки: обновляем слот и состояние карты, а затем отправляем событие на сервер
   const placeAttackCard = (
     cardId: string,
     pairIndex: number,
@@ -442,8 +445,20 @@ const GameBoard: React.FC<GameBoardProps> = ({ rules = {} }) => {
       )
     );
     Flip.from(flipState, { duration: 0.8, ease: 'power2.out', absolute: true, scale: true });
+    // Отправляем событие на сервер
+    const placedCard = cardsRef.current.find((c) => c.id === cardId);
+    if (placedCard) {
+      const eventObj = {
+        player_id: myIdRef.current,
+        type: 'attack_card',
+        defending_card: null,
+        attacking_card: `${placedCard.rank}-${placedCard.suit}-f`,
+      };
+      socket?.send(JSON.stringify(eventObj));
+    }
   };
 
+  // Функция выкладки карты для защиты: аналогично обновляем состояние и отправляем событие
   const placeCoverCard = (
     cardId: string,
     pairIndex: number,
@@ -460,6 +475,16 @@ const GameBoard: React.FC<GameBoardProps> = ({ rules = {} }) => {
       )
     );
     Flip.from(flipState, { duration: 0.8, ease: 'power2.out', absolute: true, scale: true });
+    const placedCard = cardsRef.current.find((c) => c.id === cardId);
+    if (placedCard) {
+      const eventObj = {
+        player_id: myIdRef.current,
+        type: 'defend_card',
+        attacking_card: null,
+        defending_card: `${placedCard.rank}-${placedCard.suit}-f`,
+      };
+      socket?.send(JSON.stringify(eventObj));
+    }
   };
 
   const revertCard = (cardId: string, oldState: ReturnType<typeof Flip.getState>) => {
@@ -570,11 +595,7 @@ const GameBoard: React.FC<GameBoardProps> = ({ rules = {} }) => {
 
   return (
     <div className={styles.gameBoard} ref={gameBoardRef}>
-      <OpponentsContainer
-        numPlayers={numPlayers}
-        allOpponentCards={cards.filter((c) => c.location === 'opponent')}
-      />
-
+      <OpponentsContainer numPlayers={numPlayers} allOpponentCards={cards.filter((c) => c.location === 'opponent')} />
       <Player
         onBeat={handleBeat}
         cards={cards.filter((c) => c.location === 'player')}
@@ -582,14 +603,12 @@ const GameBoard: React.FC<GameBoardProps> = ({ rules = {} }) => {
         isBeatVisible={isBeatVisible}
         isTakeVisible={isTakeVisible}
       />
-
       <div style={{ position: 'absolute', top: 10, right: 10, color: 'white' }}>
         <p>Current role: {currentTurnRole}</p>
         <button onClick={() => setCurrentTurnRole('attack')}>Attack</button>
         <button onClick={() => setCurrentTurnRole('defend')}>Defend</button>
         <button onClick={handleOpponentMove}>Ход противника</button>
       </div>
-
       {tablePairs.map((pair, i) => {
         const pos = TABLE_PAIRS_POSITIONS[i];
         if (!pos) return null;
@@ -622,13 +641,11 @@ const GameBoard: React.FC<GameBoardProps> = ({ rules = {} }) => {
           </React.Fragment>
         );
       })}
-
       {trumpSuit && (
         <div className={styles.trumpIndicator} style={{ color: getSuitClass(trumpSuit) }}>
           {getSuitSymbol(trumpSuit)}
         </div>
       )}
-
       <button
         onClick={() => {
           socket?.send(
@@ -643,7 +660,6 @@ const GameBoard: React.FC<GameBoardProps> = ({ rules = {} }) => {
       >
         send event
       </button>
-
       {cards.map((card) => {
         const style =
           card.id === trumpCardId && card.location === 'deck'
