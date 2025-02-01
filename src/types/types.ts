@@ -27,6 +27,50 @@ export interface Player {
   hand: Card[];
 }
 
+export type GameRules = {
+  maxTablePairs: number;
+  distanceThreshold: number;
+  initialHandSize: number;
+  attackRules: AttackRule[];
+  defendRules: DefendRule[];
+  slotRules: SlotRule[];
+}
+
+export type AttackRule = {
+  type: 'rank' | 'suit' | 'combination';
+  description: string;
+  validator: (context: AttackValidationContext) => boolean;
+}
+
+export type DefendRule = {
+  type: 'rank' | 'suit' | 'trump';
+  description: string;
+  validator: (context: DefendValidationContext) => boolean;
+}
+
+export type SlotRule = {
+  type: 'distance' | 'position';
+  validator: (context: SlotValidationContext) => boolean;
+}
+
+export type AttackValidationContext = {
+  attackingCard: Card;
+  tableCards: Card[];
+  trumpSuit: Suit | null;
+}
+
+export type DefendValidationContext = {
+  attackingCard: Card;
+  defendingCard: Card;
+  trumpSuit: Suit | null;
+}
+
+export type SlotValidationContext = {
+  cardPosition: { x: number; y: number };
+  slotPosition: { x: number; y: number };
+  maxDistance: number;
+}
+
 
 
 export interface IconProps extends React.SVGProps<SVGSVGElement> {

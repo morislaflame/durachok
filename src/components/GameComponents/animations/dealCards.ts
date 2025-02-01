@@ -9,7 +9,7 @@ export type FlipState = ReturnType<typeof Flip.getState>;
 /** Снимаем состояние */
 export function captureFlipState(): FlipState {
   return Flip.getState('.cardBox', {
-    props: 'transform, top, left, background, padding'
+    props: 'transform, top, left, background, padding, zIndex'
   });
 }
 

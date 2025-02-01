@@ -64,7 +64,7 @@ function getDeckCardStyle(indexInGroup: number): CSSProperties {
     top: '20%',
     left: '-10px',
     transform: 'rotate(20deg)',
-    zIndex: 1000 - indexInGroup,
+    zIndex: 10000 - indexInGroup,
     width: '45px',
     height: '65px',
   };
