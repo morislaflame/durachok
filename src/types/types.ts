@@ -230,9 +230,9 @@ export interface GameStateState {
 
 
 export interface PlayerState {
-//     id: string;
-//     is_winner: boolean;
-//     is_defending: boolean;
-//     cards: string[];
-// }
+    id: string;
+    is_winner: boolean;
+    is_defending: boolean;
+    cards: string[];
 }
+
