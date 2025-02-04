@@ -21,7 +21,8 @@ export function getCardStyle(
     (c) => c.location === card.location && c.seatIndex === card.seatIndex
   );
   
-  const indexInGroup = sameLocationCards.findIndex((c) => c.id === card.id);
+  const indexInGroup = sameLocationCards.findIndex((c) => c.stableId === card.stableId);
+
 
 //   console.log(`Card ${card.id} in group index ${indexInGroup} out of ${sameLocationCards.length}`);
 
@@ -69,8 +70,6 @@ function getDeckCardStyle(indexInGroup: number): CSSProperties {
     height: '65px',
   };
 }
-
-
 
 // Козырь
 export function getTrumpCardStyle(): CSSProperties {

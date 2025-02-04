@@ -13,6 +13,7 @@ import {
   DefendValidationContext,
   SlotValidationContext,
   GameState,
+  PlayerState
 } from '../../types/types';
 import CardItem from './CardItem';
 import OpponentsContainer from './OpponentsContainer';
@@ -25,35 +26,10 @@ import { defaultAttackRules } from './rules/attackRules';
 import { defaultDefendRules } from './rules/defendRules';
 import { defaultSlotRules } from './rules/slotRules';
 import { useParams } from 'react-router';
+import { initializeGameState } from './utils/gameStateHelpers';
 
 gsap.registerPlugin(Draggable, Flip);
 
-/**
- * Пример функции создания колоды.
- * Здесь можно задать количество карт, масти, ранги, перемешивание и т.д.
- */
-const createAllDeck = (): Card[] => {
-  const suits: Suit[] = ['H', 'D', 'C', 'S'];
-  const ranks: Rank[] = ['6', '7', '8', '9', '10', '11', '12', '13', '14'];
-  let deck: Card[] = [];
-  let idCounter = 0;
-  for (const suit of suits) {
-    for (const rank of ranks) {
-      deck.push({
-        id: `init_${idCounter++}`,
-        suit,
-        rank,
-        location: 'deck',
-      });
-    }
-  }
-  // Опционально: перемешиваем колоду
-  for (let i = deck.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [deck[i], deck[j]] = [deck[j], deck[i]];
-  }
-  return deck;
-};
 
 interface GameBoardProps {
   numPlayers: number;
@@ -84,6 +60,7 @@ const GameBoard: React.FC<GameBoardProps> = ({ rules = {} }) => {
   const [currentTurnRole, setCurrentTurnRole] = useState<'attack' | 'defend'>('attack');
   const [socket, setSocket] = useState<WebSocket | null>(null);
   const [numPlayers, setNumPlayers] = useState<number>(0);
+  // const [gameState, setGameState] = useState<GameState | null>(null);
 
   // Ссылки для анимации и проверки
   const gameState = useRef<GameState | null>(null);
@@ -96,14 +73,10 @@ const GameBoard: React.FC<GameBoardProps> = ({ rules = {} }) => {
   const draggableRefs = useRef<Record<string, Draggable>>({});
   const roleRef = useRef<'attack' | 'defend'>(currentTurnRole);
   const myIdRef = useRef<string>('');
-  // Ref для отслеживания, выполнена ли начальная раздача
-  const initialDealCompletedRef = useRef<boolean>(false);
+
 
   const { id: gameId } = useParams<{ id: string }>();
 
-  // Маппинг для стабильных id – каждому "групповому ключу" назначается постоянный id
-  const cardIdMappingRef = useRef<Map<string, string>>(new Map());
-  const nextCardIdRef = useRef<number>(0);
 
   useEffect(() => {
     tablePairsRef.current = tablePairs;
@@ -117,13 +90,17 @@ const GameBoard: React.FC<GameBoardProps> = ({ rules = {} }) => {
     roleRef.current = currentTurnRole;
   }, [currentTurnRole]);
 
-  // При монтировании, если колода ещё не инициализирована, создаём её (это делается первым игроком)
   useEffect(() => {
-    if (cards.length === 0) {
-      const initialDeck = createAllDeck();
-      setCards(initialDeck);
-    }
-  }, []);
+    const { gameState: initialGameState, cards: initialCards } = initializeGameState(numPlayers);
+    gameState.current = initialGameState;
+    setCards(initialCards);
+    // Если нужно, можно выполнить дополнительные действия, например, отправить состояние на сервер
+    console.log('Initial game state:', initialGameState);
+    flipStateRef.current = captureFlipState();
+    console.log('flipStateRef.current', flipStateRef.current);
+  }, [numPlayers]);
+
+  
 
   // Функция парсинга строки карты (например, "6-H-f")
   const parseCard = (cardStr: string): Omit<Card, 'id' | 'location'> => {
@@ -134,163 +111,7 @@ const GameBoard: React.FC<GameBoardProps> = ({ rules = {} }) => {
     return { rank: parts[0] as Rank, suit: parts[1] as Suit };
   };
 
-  /**
-   * Формирует ключ для группы карточек.
-   */
-  const getGroupKey = (
-    group: 'deck' | 'player' | 'opponent' | 'table_attack' | 'table_defend',
-    index: number,
-    cardData?: Omit<Card, 'id' | 'location'>
-  ) => {
-    if (cardData && cardData.suit && cardData.rank) {
-      return `${group}_${cardData.suit}_${cardData.rank}_${index}`;
-    }
-    return `${group}_${index}`;
-  };
-
-  /**
-   * Возвращает стабильный id для карты по ключу.
-   */
-  const getStableCardId = (key: string): string => {
-    if (cardIdMappingRef.current.has(key)) {
-      return cardIdMappingRef.current.get(key)!;
-    } else {
-      const newId = `card_${nextCardIdRef.current++}`;
-      cardIdMappingRef.current.set(key, newId);
-      return newId;
-    }
-  };
-
-  /**
-   * Обновление состояния игры по данным сокета.
-   *
-   * Если начальная раздача ещё не выполнена, обновляем состояние в два шага:
-   * 1) Все карты получают location "deck" (для фиксации Flip)
-   * 2) Затем через двойной requestAnimationFrame обновляем состояние до финальных значений.
-   *
-   * Если начальная раздача уже выполнена, просто обновляем состояние.
-   */
-  const applySocketGameState = (socketData: GameState) => {
-    const { state, cards: myCards } = socketData.data;
-    const { deck, players, table } = state;
-    const newCards: Card[] = [];
-    const myId = socketData.user_id.toString();
-    myIdRef.current = myId;
-
-    // 1. Колода
-    deck.forEach((cardStr, index) => {
-      const parsed = parseCard(cardStr);
-      const key = getGroupKey('deck', index, parsed);
-      newCards.push({
-        id: getStableCardId(key),
-        ...parsed,
-        location: 'deck',
-      });
-    });
-
-    // 2. Рука текущего игрока
-    if (myCards && Array.isArray(myCards)) {
-      myCards.forEach((cardStr, index) => {
-        const parsed = parseCard(cardStr);
-        const key = getGroupKey('player', index, parsed);
-        newCards.push({
-          id: getStableCardId(key),
-          ...parsed,
-          location: 'player',
-        });
-      });
-    }
-
-    // 3. Руки оппонентов
-    players.forEach((player, playerIndex) => {
-      if (player.id === myId) return;
-      if (player.cards && Array.isArray(player.cards)) {
-        player.cards.forEach((cardStr, cardIndex) => {
-          const parsed = parseCard(cardStr);
-          const key = getGroupKey('opponent', cardIndex, parsed) + `_${player.id}`;
-          newCards.push({
-            id: getStableCardId(key),
-            ...parsed,
-            location: 'opponent',
-            seatIndex: playerIndex,
-          });
-        });
-      }
-    });
-
-    // 4. Карты на столе
-    if (Array.isArray(table) && table.length > 0) {
-      const newTablePairs: TablePair[] = [];
-      table.forEach((pair: any, pairIndex: number) => {
-        if (pair.attacking && pair.attacking.card) {
-          const parsed = parseCard(pair.attacking.card);
-          const key = getGroupKey('table_attack', pairIndex, parsed);
-          newCards.push({
-            id: getStableCardId(key),
-            ...parsed,
-            location: 'table',
-            tablePairIndex: pairIndex,
-            tableRole: 'attack',
-          });
-        }
-        if (pair.defending && pair.defending.card) {
-          const parsed = parseCard(pair.defending.card);
-          const key = getGroupKey('table_defend', pairIndex, parsed);
-          newCards.push({
-            id: getStableCardId(key),
-            ...parsed,
-            location: 'table',
-            tablePairIndex: pairIndex,
-            tableRole: 'cover',
-          });
-        }
-        newTablePairs.push({
-          attackCardId:
-            pair.attacking && pair.attacking.card
-              ? getStableCardId(getGroupKey('table_attack', pairIndex, parseCard(pair.attacking.card)))
-              : null,
-          coverCardId:
-            pair.defending && pair.defending.card
-              ? getStableCardId(getGroupKey('table_defend', pairIndex, parseCard(pair.defending.card)))
-              : null,
-        });
-      });
-      setTablePairs(newTablePairs);
-    } else {
-      setTablePairs(
-        Array.from({ length: mergedRules.maxTablePairs }, () => ({
-          attackCardId: null,
-          coverCardId: null,
-        }))
-      );
-    }
-
-    // 5. Определяем козырь – берём последнюю карту из колоды
-    const deckCards = newCards.filter((c) => c.location === 'deck');
-    if (deckCards.length > 0) {
-      const trumpCard = deckCards[deckCards.length - 1];
-      setTrumpSuit(trumpCard.suit);
-      setTrumpCardId(trumpCard.id);
-    }
-
-    // Если начальная раздача ещё не выполнена, обновляем состояние с анимацией раздачи
-    if (!initialDealCompletedRef.current) {
-      const allDeckCards = newCards.map((card) => ({ ...card, location: 'deck' }));
-      flipStateRef.current = captureFlipState();
-      setCards(allDeckCards);
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          flipStateRef.current = captureFlipState();
-          setCards(newCards);
-          initialDealCompletedRef.current = true;
-        });
-      });
-    } else {
-      // Если раздача уже выполнена, просто обновляем состояние
-      setCards(newCards);
-    }
-  };
-
+  
   // Подключаемся к WebSocket
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -300,7 +121,6 @@ const GameBoard: React.FC<GameBoardProps> = ({ rules = {} }) => {
       const data = JSON.parse(event.data) as GameState;
       gameState.current = data;
       setNumPlayers(data.data.state.players.length);
-      applySocketGameState(data);
       console.log('gameState', data);
     };
     ws.onerror = (error) => {
@@ -324,9 +144,10 @@ const GameBoard: React.FC<GameBoardProps> = ({ rules = {} }) => {
   useEffect(() => {
     const playerCards = cards.filter((c) => c.location === 'player');
     playerCards.forEach((card) => {
-      if (draggableRefs.current[card.id]) return;
-      const el = document.querySelector(`[data-flip-id="${card.id}"]`);
+      if (draggableRefs.current[card.stableId!]) return;
+      const el = document.querySelector(`[data-flip-id="${card.stableId}"]`);
       if (!el) return;
+
       const draggable = Draggable.create(el, {
         type: 'x,y',
         onPress: () => {
@@ -334,19 +155,22 @@ const GameBoard: React.FC<GameBoardProps> = ({ rules = {} }) => {
         },
         onDragEnd: () => {
           flipStateRef.current = Flip.getState(el, { props: 'transform, top, left, zIndex' });
-          handlePlayerCardDrop(card.id, flipStateRef.current!);
+          handlePlayerCardDrop(card.stableId!, flipStateRef.current!);
         },
+
       })[0];
-      draggableRefs.current[card.id] = draggable;
+      draggableRefs.current[card.stableId!] = draggable;
     });
+
     return () => {
       Object.keys(draggableRefs.current).forEach((cardId) => {
-        const c = cards.find((cc) => cc.id === cardId);
+        const c = cards.find((cc) => cc.stableId === cardId);
         if (c && c.location !== 'player') {
           draggableRefs.current[cardId].kill();
           delete draggableRefs.current[cardId];
         }
       });
+
     };
   }, [cards]);
 
@@ -417,8 +241,9 @@ const GameBoard: React.FC<GameBoardProps> = ({ rules = {} }) => {
     if (!el) return;
     const rect = el.getBoundingClientRect();
     const cardCenter = { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
-    const currentCard = cardsRef.current.find((c) => c.id === cardId);
+    const currentCard = cardsRef.current.find((c) => c.stableId === cardId);
     if (!currentCard) return;
+
 
     if (currentTurnRole === 'attack') {
       const freeIndex = tablePairsRef.current.findIndex((p) => p.attackCardId === null);
@@ -453,11 +278,12 @@ const GameBoard: React.FC<GameBoardProps> = ({ rules = {} }) => {
         revertCard(cardId, newFlipStateRef.current);
         return;
       }
-      const attackCard = cardsRef.current.find((c) => c.id === attackCardId);
+      const attackCard = cardsRef.current.find((c) => c.stableId === attackCardId);
       if (!attackCard) {
         revertCard(cardId, newFlipStateRef.current);
         return;
       }
+
       const { defendValid, slotValid } = validateDefense(currentCard, attackCard, foundIndex, cardCenter);
       if (!defendValid || !slotValid) {
         revertCard(cardId, newFlipStateRef.current);
@@ -478,19 +304,21 @@ const GameBoard: React.FC<GameBoardProps> = ({ rules = {} }) => {
     );
     setCards((prev) =>
       prev.map((c) =>
-        c.id === cardId
+        c.stableId === cardId
           ? { ...c, location: 'table', tablePairIndex: pairIndex, tableRole: 'attack' }
           : c
       )
     );
+
     Flip.from(flipState, { duration: 0.8, ease: 'power2.out', absolute: true, scale: true });
-    const placedCard = cardsRef.current.find((c) => c.id === cardId);
+    const placedCard = cardsRef.current.find((c) => c.stableId === cardId);
     if (placedCard) {
       const eventObj = {
         player_id: myIdRef.current,
         type: 'attack_card',
         defending_card: null,
         attacking_card: `${placedCard.rank}-${placedCard.suit}-f`,
+
       };
       socket?.send(JSON.stringify(eventObj));
     }
@@ -507,13 +335,15 @@ const GameBoard: React.FC<GameBoardProps> = ({ rules = {} }) => {
     );
     setCards((prev) =>
       prev.map((c) =>
-        c.id === cardId
+        c.stableId === cardId
           ? { ...c, location: 'table', tablePairIndex: pairIndex, tableRole: 'cover' }
           : c
       )
     );
+
     Flip.from(flipState, { duration: 0.8, ease: 'power2.out', absolute: true, scale: true });
-    const placedCard = cardsRef.current.find((c) => c.id === cardId);
+    const placedCard = cardsRef.current.find((c) => c.stableId === cardId);
+
     if (placedCard) {
       const eventObj = {
         player_id: myIdRef.current,
@@ -544,8 +374,9 @@ const GameBoard: React.FC<GameBoardProps> = ({ rules = {} }) => {
       { props: 'transform, top, left, zIndex' }
     );
     setCards((prev) =>
-      prev.map((c) => (coveredCardIds.includes(c.id) ? { ...c, location: 'discard' } : c))
+      prev.map((c) => (coveredCardIds.includes(c.stableId!) ? { ...c, location: 'discard' } : c))
     );
+
     setTablePairs((prev) =>
       prev.map((p) => (p.attackCardId && p.coverCardId ? { attackCardId: null, coverCardId: null } : p))
     );
@@ -599,11 +430,12 @@ const GameBoard: React.FC<GameBoardProps> = ({ rules = {} }) => {
     );
     setCards((prev) =>
       prev.map((c) =>
-        tableCardIds.includes(c.id)
+        tableCardIds.includes(c.stableId!)
           ? { ...c, location: 'player', tablePairIndex: undefined, tableRole: undefined }
           : c
       )
     );
+
     setTablePairs((prev) => prev.map(() => ({ attackCardId: null, coverCardId: null })));
   };
 
@@ -616,10 +448,11 @@ const GameBoard: React.FC<GameBoardProps> = ({ rules = {} }) => {
       return;
     }
     const attackCardId = tablePairs[uncoveredIndex].attackCardId!;
-    const attackCard = cards.find((c) => c.id === attackCardId);
+    const attackCard = cards.find((c) => c.stableId === attackCardId);
     if (!attackCard) return;
     const oppCards = cards.filter((c) => c.location === 'opponent');
     flipStateRef.current = captureFlipState();
+
     const suitableCard = oppCards.find((defCard) => {
       const { defendValid } = validateDefense(defCard, attackCard, uncoveredIndex);
       return defendValid;
@@ -628,8 +461,9 @@ const GameBoard: React.FC<GameBoardProps> = ({ rules = {} }) => {
       console.log('Противник не смог покрыть — нет подходящей карты');
       return;
     }
-    placeCoverCard(suitableCard.id, uncoveredIndex, flipStateRef.current!);
+    placeCoverCard(suitableCard.stableId!, uncoveredIndex, flipStateRef.current!);
   };
+
 
   return (
     <div className={styles.gameBoard} ref={gameBoardRef}>
@@ -700,19 +534,21 @@ const GameBoard: React.FC<GameBoardProps> = ({ rules = {} }) => {
       </button>
       {cards.map((card) => {
         const style =
-          card.id === trumpCardId && card.location === 'deck'
+          card.stableId === trumpCardId && card.location === 'deck'
             ? getTrumpCardStyle()
             : getCardStyle(card, cards, numPlayers);
+
         return (
           <CardItem
-            key={card.id}
+            key={card.stableId}
             card={card}
             trumpSuit={trumpSuit}
             style={style}
             isDraggable={card.location === 'player'}
             isFaceUp={
+
               ['player', 'table'].includes(card.location) ||
-              (card.id === trumpCardId && card.location === 'deck')
+              (card.stableId === trumpCardId && card.location === 'deck')
             }
           />
         );

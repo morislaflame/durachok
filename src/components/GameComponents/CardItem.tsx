@@ -27,7 +27,7 @@ const CardItem: React.FC<CardItemProps> = React.memo(
           cursor: isDraggable ? 'grab' : 'default', // Изменение курсора для перетаскиваемых карт
           position: 'absolute', // Обеспечение абсолютного позиционирования для корректной анимации
         }}
-        data-flip-id={card.id} // Идентификатор для поиска DOM-элемента
+        data-flip-id={card.stableId} // Идентификатор для поиска DOM-элемента
         data-player-hand={dataPlayerHand}
       >
         {isFaceUp ? (

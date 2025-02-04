@@ -6,16 +6,15 @@ export type Suit = 'H' | 'D' | 'C' | 'S';
 export type Rank = '6' | '7' | '8' | '9' | '10' | '11' | '12' | '13' | '14';
 
 export interface Card {
-    id: string;
+    // id: string;
     suit: Suit;
     rank: Rank;
     location: 'deck' | 'player' | 'opponent' | 'table' | 'discard';
     /** Какой именно оппонент владеет картой. */
     seatIndex?: number;
-    /** Позиция на столе. */
-    // tablePositionIndex?: number;
     tablePairIndex?: number;
     tableRole?: 'attack' | 'cover';
+    stableId?: string;
 }
 
 export interface TablePair {
@@ -77,138 +76,15 @@ export interface IconProps extends React.SVGProps<SVGSVGElement> {
     huy?: string;
 }
 
-
-// {
-//     "user_id"
-// :
-//     1,
-//         "type"
-// :
-//     "game_state",
-//         "data"
-// :
-//     {
-//         "actions"
-//     :
-//         [
-//             {
-//                 "player_id": "1",
-//                 "type": "attack_pass",
-//                 "defending_card": null,
-//                 "attacking_card": null
-//             }
-//         ],
-//             "state"
-//     :
-//         {
-//             "deck"
-//         :
-//             [
-//                 "***",
-//                 "***",
-//                 "***",
-//                 "***",
-//                 "***",
-//                 "***",
-//                 "***",
-//                 "***",
-//                 "***",
-//                 "***",
-//                 "***",
-//                 "***",
-//                 "***",
-//                 "***",
-//                 "***",
-//                 "***",
-//                 "***",
-//                 "***",
-//                 "***",
-//                 "***",
-//                 "***",
-//                 "***",
-//                 "***",
-//                 "8-C-t"
-//             ],
-//                 "players"
-//         :
-//             [
-//                 {
-//                     "id": "1",
-//                     "is_winner": false,
-//                     "is_defending": false,
-//                     "cards": [
-//                         "***",
-//                         "***",
-//                         "***",
-//                         "***",
-//                         "***"
-//                     ]
-//                 },
-//                 {
-//                     "id": "2",
-//                     "is_winner": false,
-//                     "is_defending": true,
-//                     "cards": [
-//                         "***",
-//                         "***",
-//                         "***",
-//                         "***",
-//                         "***",
-//                         "***"
-//                     ]
-//                 }
-//             ],
-//                 "beaten"
-//         :
-//             [],
-//                 "table"
-//         :
-//             [
-//                 {
-//                     "attacking": {
-//                         "player_id": "1",
-//                         "card": "11-S-f"
-//                     },
-//                     "defending": null,
-//                     "defender_taking": false
-//                 }
-//             ],
-//                 "current_player_id"
-//         :
-//             "1",
-//                 "attackers_passes"
-//         :
-//             []
-//         }
-//     ,
-//         "cards"
-//     :
-//         [
-//             "9-S-f",
-//             "6-C-t",
-//             "10-D-f",
-//             "10-S-f",
-//             "12-D-f"
-//         ]
-//     }
-// ,
-//     "topic"
-// :
-//     "game_16"
-// }
-// \
-
-
-
 export interface GameState {
-    user_id: number;
-    type: 'game_state';
     data: {
         actions: GameAction[];
         state: GameStateState;
         cards: string[];
     };
     topic: string;
+    type: 'game_state';
+    user_id: number;
 }
 
 export interface GameAction {
@@ -218,16 +94,14 @@ export interface GameAction {
     attacking_card: string | null;
 }
 
-
 export interface GameStateState {
+    attackers_passes: string[];
+    beaten: string[];
+    current_player_id: string;
     deck: string[];
     players: PlayerState[];
-    beaten: string[];
-    table: TablePair[];
-    current_player_id: string;
-    attackers_passes: string[];
+    table: Table[];
 }
-
 
 export interface PlayerState {
     id: string;
@@ -236,3 +110,11 @@ export interface PlayerState {
     cards: string[];
 }
 
+export interface Table {
+  attacking: {
+    player_id: string;
+    card: string;
+  };
+  defending: string | null;
+  defender_taking: boolean;
+}
