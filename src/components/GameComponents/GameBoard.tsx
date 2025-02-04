@@ -13,7 +13,6 @@ import {
   DefendValidationContext,
   SlotValidationContext,
   GameState,
-  PlayerState
 } from '../../types/types';
 import CardItem from './CardItem';
 import OpponentsContainer from './OpponentsContainer';
@@ -73,6 +72,9 @@ const GameBoard: React.FC<GameBoardProps> = ({ rules = {} }) => {
   const draggableRefs = useRef<Record<string, Draggable>>({});
   const roleRef = useRef<'attack' | 'defend'>(currentTurnRole);
   const myIdRef = useRef<string>('');
+  const hasReceivedSocketMessage = useRef(false);
+  const initialDealDone = useRef(false);
+
 
 
   const { id: gameId } = useParams<{ id: string }>();
@@ -91,6 +93,7 @@ const GameBoard: React.FC<GameBoardProps> = ({ rules = {} }) => {
   }, [currentTurnRole]);
 
   useEffect(() => {
+    if (gameState.current) return;
     const { gameState: initialGameState, cards: initialCards } = initializeGameState(numPlayers);
     gameState.current = initialGameState;
     setCards(initialCards);
@@ -103,13 +106,16 @@ const GameBoard: React.FC<GameBoardProps> = ({ rules = {} }) => {
   
 
   // Функция парсинга строки карты (например, "6-H-f")
-  const parseCard = (cardStr: string): Omit<Card, 'id' | 'location'> => {
-    if (cardStr === '***') {
-      return { suit: 'H', rank: '6' };
+  const parseCard = (cardStr: string | undefined): { suit: Suit; rank: Rank } => {
+    if (!cardStr || cardStr === '***') {
+      // Возвращаем дефолтное значение (или можно вернуть null/throw, в зависимости от логики)
+      return { suit: 'H' as Suit, rank: '6' as Rank };
+
     }
     const parts = cardStr.split('-');
     return { rank: parts[0] as Rank, suit: parts[1] as Suit };
   };
+  
 
   
   // Подключаемся к WebSocket
@@ -121,6 +127,9 @@ const GameBoard: React.FC<GameBoardProps> = ({ rules = {} }) => {
       const data = JSON.parse(event.data) as GameState;
       gameState.current = data;
       setNumPlayers(data.data.state.players.length);
+      if (!hasReceivedSocketMessage.current) {
+        hasReceivedSocketMessage.current = true;
+      }
       console.log('gameState', data);
     };
     ws.onerror = (error) => {
@@ -139,6 +148,110 @@ const GameBoard: React.FC<GameBoardProps> = ({ rules = {} }) => {
       });
     }
   }, [cards]);
+
+  useEffect(() => {
+    if (gameState.current && 
+      cards.length > 0 && 
+      hasReceivedSocketMessage.current && 
+      !initialDealDone.current && 
+      gameState.current.data.cards.length >= mergedRules.initialHandSize) {
+      // Определяем, что пришло начальное состояние игры.
+      // Можно добавить проверку по наличию массива карт в incomingState.
+      const incomingState = gameState.current;
+
+      flipStateRef.current = captureFlipState();
+      // Обновляем карты: раздаем initialHandSize карт каждому игроку
+      const updatedCards = dealInitialCards(
+        incomingState,
+        cards,
+        numPlayers,           // число игроков
+        mergedRules.initialHandSize  // например, 6
+      );
+      // Сохраняем обновленный массив карт
+      setCards(updatedCards);
+      initialDealDone.current = true;
+
+      const serverDeck = incomingState.data.state.deck;
+      if (serverDeck && serverDeck.length > 0) {
+        const trumpString = serverDeck[serverDeck.length - 1];
+        if (trumpString !== '***') {
+          const { suit, rank } = parseCard(trumpString);
+          const deckCards = updatedCards.filter(c => c.location === 'deck');
+          if (deckCards.length > 0) {
+            const trumpCard = deckCards[deckCards.length - 1];
+            // Обновляем её масть и ранг согласно данным с сервера
+            trumpCard.suit = suit;
+            trumpCard.rank = rank;
+            // Сохраняем id козырной карты и масть в state
+            setTrumpCardId(trumpCard.stableId!);
+            setTrumpSuit(suit);
+          }
+        }
+      }
+    }
+  }, [gameState.current, cards, numPlayers, mergedRules.initialHandSize]);
+
+  /**
+ * Функция для первоначальной раздачи карт.
+ * 
+ * @param incomingState объект из сокета с данными игры (начальное состояние)
+ * @param currentCards текущий массив карт (изначально с location: 'deck')
+ * @param numPlayers количество игроков
+ * @param initialHandSize сколько карт должно быть на руке
+ * @returns обновленный массив карт
+ */
+const dealInitialCards = (
+  incomingState: GameState,
+  currentCards: Card[],
+  numPlayers: number,
+  initialHandSize: number
+): Card[] => {
+  // Копируем массив, чтобы не мутировать исходное состояние
+  const updatedCards = [...currentCards];
+  // Получаем массив строк для карт текущего игрока из объекта, пришедшего из сокета.
+  // Например: ["6-H-f", "7-S-t", ...]
+  const playerCardStrings: string[] = incomingState.data.cards;
+  console.log('playerCardStrings', playerCardStrings);
+  
+  // Для удобства находим все карты, которые ещё в колоде
+  let deckCards = updatedCards.filter((c) => c.location === 'deck');
+
+  // Раздаем карты текущему игроку:
+  for (let i = 0; i < initialHandSize; i++) {
+    // Берем первую доступную карту из колоды
+    const cardToDeal = deckCards.shift();
+    if (!cardToDeal) break;
+    // Берем соответствующую строку из пришедших данных
+    const cardStr = playerCardStrings[i];
+    if (!cardStr) continue;
+    // Парсим строку, чтобы получить масть и ранг
+    const { suit, rank } = parseCard(cardStr);
+    // Обновляем свойства карты, не меняя stableId
+    cardToDeal.suit = suit as Suit; // если у вас типизация Rank/Suit совпадает с передаваемыми значениями
+    cardToDeal.rank = rank as Rank;
+    cardToDeal.location = 'player';
+  }
+
+  // Обновляем массив deckCards после раздачи текущему игроку
+  deckCards = updatedCards.filter((c) => c.location === 'deck');
+
+  // Раздаем карты остальным игрокам.
+  // Количество оппонентов = numPlayers - 1
+  for (let opponentIndex = 0; opponentIndex < numPlayers - 1; opponentIndex++) {
+    for (let i = 0; i < initialHandSize; i++) {
+      const cardToDeal = deckCards.shift();
+      if (!cardToDeal) break;
+      // Для оппонента оставляем значение как есть ("***")
+      // Просто меняем location и задаем seatIndex
+      cardToDeal.location = 'opponent';
+      cardToDeal.seatIndex = opponentIndex;
+    }
+  }
+
+  // Возвращаем обновленный массив карт
+  return updatedCards;
+};
+
 
   // Обработка перетаскивания карт игрока
   useEffect(() => {

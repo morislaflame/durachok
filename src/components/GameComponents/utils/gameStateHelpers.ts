@@ -55,7 +55,7 @@ export const initializeGameState = (numPlayers: number): { gameState: GameState;
         table: [],
 
       },
-      cards: deckStrings, // здесь можно дублировать или использовать другое представление колоды
+      cards: [], // здесь можно дублировать или использовать другое представление колоды
     },
     topic: 'game_state',
     type: 'game_state',
