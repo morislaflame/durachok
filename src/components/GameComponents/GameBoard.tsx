@@ -13,6 +13,7 @@ import {
   DefendValidationContext,
   SlotValidationContext,
   GameState,
+  PlayerState,
 } from '../../types/types';
 import CardItem from './CardItem';
 import OpponentsContainer from './OpponentsContainer';
@@ -74,7 +75,7 @@ const GameBoard: React.FC<GameBoardProps> = ({ rules = {} }) => {
   const myIdRef = useRef<number>(0);
   const hasReceivedSocketMessage = useRef(false);
   const initialDealDone = useRef(false);
-
+  const [players, setPlayers] = useState<PlayerState[]>([]);
 
 
 
@@ -130,10 +131,25 @@ const GameBoard: React.FC<GameBoardProps> = ({ rules = {} }) => {
       const playersLength = data.data?.state?.players?.length;
       if (playersLength !== undefined) {
         setNumPlayers(playersLength);
+        setPlayers(data.data.state.players);
       } else {
         console.warn('Получено сообщение без состояния или без игроков:', data);
       }
-      
+      if (gameState.current && gameState.current.data?.state?.players) {
+        const allPlayers = gameState.current.data.state.players;
+        // Получаем current_player_id из объекта состояния (это id текущего игрока)
+        const currentPlayerId = gameState.current.data.state.current_player_id;
+        // Находим индекс текущего игрока в исходном массиве
+        const currentIndex = allPlayers.findIndex(p => p.id === currentPlayerId);
+        // Если найден, переставляем так, чтобы текущий был первым
+        const orderedPlayers =
+          currentIndex >= 0
+            ? [...allPlayers.slice(currentIndex), ...allPlayers.slice(0, currentIndex)]
+            : allPlayers;
+        console.log('orderedPlayers', orderedPlayers);
+        setPlayers(orderedPlayers);
+      }
+
       if (!hasReceivedSocketMessage.current) {
         hasReceivedSocketMessage.current = true;
       }
@@ -147,6 +163,13 @@ const GameBoard: React.FC<GameBoardProps> = ({ rules = {} }) => {
     };
     
   }, [gameId]);
+
+  useEffect(() => {
+    
+  }, [gameState.current]);
+  
+  
+
 
   // Запуск Flip-анимации при изменении состояния карточек
   useLayoutEffect(() => {
@@ -228,6 +251,8 @@ const dealInitialCards = (
   // Для удобства находим все карты, которые ещё в колоде
   let deckCards = updatedCards.filter((c) => c.location === 'deck');
 
+  const currentPlayerId = incomingState.data.state.current_player_id;
+
   // Раздаем карты текущему игроку:
   for (let i = 0; i < initialHandSize; i++) {
     // Берем первую доступную карту из колоды
@@ -243,6 +268,7 @@ const dealInitialCards = (
     cardToDeal.rank = rank as Rank;
     cardToDeal.trumpFlag = trumpFlag;
     cardToDeal.location = 'player';
+    cardToDeal.playerId = currentPlayerId;
   }
 
   // Обновляем массив deckCards после раздачи текущему игроку
@@ -250,16 +276,18 @@ const dealInitialCards = (
 
   // Раздаем карты остальным игрокам.
   // Количество оппонентов = numPlayers - 1
-  for (let opponentIndex = 0; opponentIndex < numPlayers - 1; opponentIndex++) {
+  const opponents = players.slice(1); // players из state
+  opponents.forEach((opponent, index) => {
     for (let i = 0; i < initialHandSize; i++) {
       const cardToDeal = deckCards.shift();
       if (!cardToDeal) break;
-      // Для оппонента оставляем значение как есть ("***")
-      // Просто меняем location и задаем seatIndex
       cardToDeal.location = 'opponent';
-      cardToDeal.seatIndex = opponentIndex;
+      cardToDeal.playerId = opponent.id;
+      // Можно оставить seatIndex как вспомогательный параметр для позиционирования,
+      // но основное – это поле playerId
+      cardToDeal.seatIndex = index;
     }
-  }
+  });
 
   // Возвращаем обновленный массив карт
   return updatedCards;
@@ -657,7 +685,11 @@ const dealInitialCards = (
 
   return (
     <div className={styles.gameBoard} ref={gameBoardRef}>
-      <OpponentsContainer numPlayers={numPlayers} allOpponentCards={cards.filter((c) => c.location === 'opponent')} />
+      <OpponentsContainer 
+      numPlayers={numPlayers} 
+      allOpponentCards={cards.filter((c) => c.location === 'opponent')} 
+      opponents={players.filter(p => p.id !== gameState.current?.data.state.current_player_id)}
+      />
       <Player
         onBeat={handleBeat}
         cards={cards.filter((c) => c.location === 'player')}

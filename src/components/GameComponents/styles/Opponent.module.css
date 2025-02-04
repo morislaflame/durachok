@@ -38,6 +38,7 @@
   .opponentName {
     font-size: 8px;
     font-weight: bold;
+    z-index: 1000;
   }
 
   .cardsCount {

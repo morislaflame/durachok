@@ -16,6 +16,7 @@ export interface Card {
     tableRole?: 'attack' | 'cover';
     stableId?: string;
     trumpFlag?: 'f' | 't';
+    playerId?: string;
 }
 
 export interface TablePair {
