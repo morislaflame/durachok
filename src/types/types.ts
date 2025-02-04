@@ -15,6 +15,7 @@ export interface Card {
     tablePairIndex?: number;
     tableRole?: 'attack' | 'cover';
     stableId?: string;
+    trumpFlag?: 'f' | 't';
 }
 
 export interface TablePair {
@@ -89,7 +90,7 @@ export interface GameState {
 
 export interface GameAction {
     player_id: string;
-    type: 'attack_pass' | 'attack' | 'defend' | 'defend_pass';
+    type: 'attack_pass' | 'attack_card' | 'defend_card' | 'defend_pass';
     defending_card: string | null;
     attacking_card: string | null;
 }

@@ -71,9 +71,10 @@ const GameBoard: React.FC<GameBoardProps> = ({ rules = {} }) => {
   const discardCardsRef = useRef<ReturnType<typeof Flip.getState> | null>(null);
   const draggableRefs = useRef<Record<string, Draggable>>({});
   const roleRef = useRef<'attack' | 'defend'>(currentTurnRole);
-  const myIdRef = useRef<string>('');
+  const myIdRef = useRef<number>(0);
   const hasReceivedSocketMessage = useRef(false);
   const initialDealDone = useRef(false);
+
 
 
 
@@ -106,14 +107,14 @@ const GameBoard: React.FC<GameBoardProps> = ({ rules = {} }) => {
   
 
   // Функция парсинга строки карты (например, "6-H-f")
-  const parseCard = (cardStr: string | undefined): { suit: Suit; rank: Rank } => {
+  const parseCard = (cardStr: string | undefined): { suit: Suit; rank: Rank, trumpFlag: 'f' | 't'; } => {
     if (!cardStr || cardStr === '***') {
       // Возвращаем дефолтное значение (или можно вернуть null/throw, в зависимости от логики)
-      return { suit: 'H' as Suit, rank: '6' as Rank };
+      return { suit: 'H' as Suit, rank: '6' as Rank, trumpFlag: 'f' };
 
     }
     const parts = cardStr.split('-');
-    return { rank: parts[0] as Rank, suit: parts[1] as Suit };
+    return { rank: parts[0] as Rank, suit: parts[1] as Suit, trumpFlag: parts[2] as 'f' | 't' };
   };
   
 
@@ -126,7 +127,13 @@ const GameBoard: React.FC<GameBoardProps> = ({ rules = {} }) => {
     ws.onmessage = (event) => {
       const data = JSON.parse(event.data) as GameState;
       gameState.current = data;
-      setNumPlayers(data.data.state.players.length);
+      const playersLength = data.data?.state?.players?.length;
+      if (playersLength !== undefined) {
+        setNumPlayers(playersLength);
+      } else {
+        console.warn('Получено сообщение без состояния или без игроков:', data);
+      }
+      
       if (!hasReceivedSocketMessage.current) {
         hasReceivedSocketMessage.current = true;
       }
@@ -138,6 +145,7 @@ const GameBoard: React.FC<GameBoardProps> = ({ rules = {} }) => {
     return () => {
       ws.close();
     };
+    
   }, [gameId]);
 
   // Запуск Flip-анимации при изменении состояния карточек
@@ -158,9 +166,12 @@ const GameBoard: React.FC<GameBoardProps> = ({ rules = {} }) => {
       // Определяем, что пришло начальное состояние игры.
       // Можно добавить проверку по наличию массива карт в incomingState.
       const incomingState = gameState.current;
-
+      myIdRef.current = incomingState.user_id;
+      console.log('myIdRef.current', myIdRef.current);
       flipStateRef.current = captureFlipState();
       // Обновляем карты: раздаем initialHandSize карт каждому игроку
+
+
       const updatedCards = dealInitialCards(
         incomingState,
         cards,
@@ -175,13 +186,14 @@ const GameBoard: React.FC<GameBoardProps> = ({ rules = {} }) => {
       if (serverDeck && serverDeck.length > 0) {
         const trumpString = serverDeck[serverDeck.length - 1];
         if (trumpString !== '***') {
-          const { suit, rank } = parseCard(trumpString);
+          const { suit, rank, trumpFlag } = parseCard(trumpString);
           const deckCards = updatedCards.filter(c => c.location === 'deck');
           if (deckCards.length > 0) {
             const trumpCard = deckCards[deckCards.length - 1];
             // Обновляем её масть и ранг согласно данным с сервера
             trumpCard.suit = suit;
             trumpCard.rank = rank;
+            trumpCard.trumpFlag = trumpFlag;
             // Сохраняем id козырной карты и масть в state
             setTrumpCardId(trumpCard.stableId!);
             setTrumpSuit(suit);
@@ -225,10 +237,11 @@ const dealInitialCards = (
     const cardStr = playerCardStrings[i];
     if (!cardStr) continue;
     // Парсим строку, чтобы получить масть и ранг
-    const { suit, rank } = parseCard(cardStr);
+    const { suit, rank, trumpFlag } = parseCard(cardStr);
     // Обновляем свойства карты, не меняя stableId
     cardToDeal.suit = suit as Suit; // если у вас типизация Rank/Suit совпадает с передаваемыми значениями
     cardToDeal.rank = rank as Rank;
+    cardToDeal.trumpFlag = trumpFlag;
     cardToDeal.location = 'player';
   }
 
@@ -344,6 +357,25 @@ const dealInitialCards = (
     };
   };
 
+  const isActionAllowed = (actionType: string, cardString: string): boolean => {
+    if (!gameState.current) return false;
+    
+    return gameState.current.data.actions.some((action) => {
+      if (actionType === 'attack_card') {
+        // Для атаки допускается только если attacking_card соответствует, а defending_card равен null
+        return action.type === 'attack_card' &&
+               action.attacking_card === cardString &&
+               action.defending_card === null;
+      } else if (actionType === 'defend_card') {
+        // Для защиты допускается только если defending_card соответствует, а attacking_card равен null
+        return action.type === 'defend_card' &&
+               action.defending_card === cardString &&
+               action.attacking_card === null;
+      }
+      return false;
+    });
+  };
+  
   // Обработка дропа карты игрока (с проверками расстояния и анимацией)
   const handlePlayerCardDrop = (
     cardId: string,
@@ -369,7 +401,15 @@ const dealInitialCards = (
         revertCard(cardId, newFlipStateRef.current);
         return;
       }
+      const cardString = `${currentCard.rank}-${currentCard.suit}-${currentCard.trumpFlag}`;
+      const allowed = isActionAllowed('attack_card', cardString);
+      if (!allowed) {
+        revertCard(cardId, newFlipStateRef.current);
+        return;
+      }
       placeAttackCard(cardId, freeIndex, flipState);
+
+
     } else {
       let foundIndex: number | null = null;
       for (let i = 0; i < tablePairsRef.current.length; i++) {
@@ -402,7 +442,15 @@ const dealInitialCards = (
         revertCard(cardId, newFlipStateRef.current);
         return;
       }
+
+      const cardString = `${currentCard.rank}-${currentCard.suit}-${currentCard.trumpFlag}`;
+      const allowed = isActionAllowed('defend_card', cardString);
+      if (!allowed) {
+        revertCard(cardId, newFlipStateRef.current);
+        return;
+      }
       placeCoverCard(cardId, foundIndex, flipState);
+
     }
   };
 
@@ -423,18 +471,35 @@ const dealInitialCards = (
       )
     );
 
-    Flip.from(flipState, { duration: 0.8, ease: 'power2.out', absolute: true, scale: true });
-    const placedCard = cardsRef.current.find((c) => c.stableId === cardId);
-    if (placedCard) {
-      const eventObj = {
-        player_id: myIdRef.current,
-        type: 'attack_card',
-        defending_card: null,
-        attacking_card: `${placedCard.rank}-${placedCard.suit}-f`,
-
-      };
-      socket?.send(JSON.stringify(eventObj));
-    }
+    Flip.from(flipState, {
+      duration: 0.8,
+      ease: 'power2.out',
+      absolute: true,
+      scale: true,
+      onComplete: () => {
+        // После завершения анимации находим выложенную карту
+        const placedCard = cardsRef.current.find((c) => c.stableId === cardId);
+        if (!placedCard) return;
+        // Формируем строку для отправки, используя сохранённое свойство trumpFlag
+        const trumpFlag = placedCard.trumpFlag || 'f';
+        const cardString = `${placedCard.rank}-${placedCard.suit}-${trumpFlag}`;
+        
+        // Формируем и отправляем событие на сервер
+        const eventObj = {
+          player_id: myIdRef.current.toString(),
+          type: 'attack_card',
+          defending_card: null,
+          attacking_card: cardString,
+        };
+        if (socket && socket.readyState === WebSocket.OPEN) {
+          socket.send(JSON.stringify(eventObj));
+        } else {
+          console.error("Socket is not open, readyState:", socket?.readyState);
+        }
+        
+        
+      },
+    });
   };
 
   // Функция выкладки карты для защиты: обновляем состояние и отсылаем событие на сервер
@@ -454,18 +519,30 @@ const dealInitialCards = (
       )
     );
 
-    Flip.from(flipState, { duration: 0.8, ease: 'power2.out', absolute: true, scale: true });
-    const placedCard = cardsRef.current.find((c) => c.stableId === cardId);
-
-    if (placedCard) {
-      const eventObj = {
-        player_id: myIdRef.current,
-        type: 'defend_card',
-        attacking_card: null,
-        defending_card: `${placedCard.rank}-${placedCard.suit}-f`,
-      };
-      socket?.send(JSON.stringify(eventObj));
-    }
+    Flip.from(flipState, {
+      duration: 0.8,
+      ease: 'power2.out',
+      absolute: true,
+      scale: true,
+      onComplete: () => {
+        // После завершения анимации находим выложенную карту
+        const placedCard = cardsRef.current.find((c) => c.stableId === cardId);
+        if (!placedCard) return;
+        // Формируем строку для отправки, используя сохранённое значение trumpFlag
+        const trumpFlag = placedCard.trumpFlag || 'f';
+        const cardString = `${placedCard.rank}-${placedCard.suit}-${trumpFlag}`;
+        
+        // Формируем и отправляем событие для защиты
+        const eventObj = {
+          player_id: myIdRef.current.toString(),
+          type: 'defend_card',
+          attacking_card: null,
+          defending_card: cardString,
+        };
+        socket?.send(JSON.stringify(eventObj));
+        
+      },
+    });
   };
 
   const revertCard = (cardId: string, oldState: ReturnType<typeof Flip.getState>) => {
