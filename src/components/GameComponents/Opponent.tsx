@@ -6,14 +6,15 @@ import Avatar from './Avatar';
 import avatarImage from '../../assets/avatar.jpg';
 
 interface OpponentProps {
-  seatIndex: number;
   cards: Card[];
   playerId: string;
 }
 
-const Opponent: React.FC<OpponentProps> = ({ seatIndex, cards, playerId }) => {
+
+const Opponent: React.FC<OpponentProps> = ({ cards, playerId }) => {
   // Можем вывести, сколько карт у этого оппонента, или имя вида "Opponent #3"
   const name = `Opponent #${playerId}`;
+
 
   return (
     <div className={styles.opponentContainer}>

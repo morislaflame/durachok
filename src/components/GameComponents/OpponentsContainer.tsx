@@ -1,7 +1,7 @@
-import { Card } from "../../types/types";
-import { PlayerState } from "../../types/types";
-import { generateOpponentSeatPositions } from "./position/generateOpponentPositions";
-import Opponent from "./Opponent";
+import React from 'react';
+import { Card, PlayerState } from '../../types/types';
+import { generateOpponentSeatPositions } from './position/generateOpponentPositions';
+import Opponent from './Opponent';
 
 interface OpponentsContainerProps {
   numPlayers: number;
@@ -10,26 +10,25 @@ interface OpponentsContainerProps {
 }
 
 const OpponentsContainer: React.FC<OpponentsContainerProps> = ({
-  numPlayers,
   allOpponentCards,
   opponents,
 }) => {
-  const numOpponents = numPlayers - 1;
+
+  const numOpponents = opponents.length; // или numPlayers - 1
   const seatPositions = generateOpponentSeatPositions(numOpponents);
-  const seatIndices = Array.from({ length: numOpponents }, (_, i) => i);
 
   return (
     <>
-      {seatIndices.map((seatIndex) => {
-        // Здесь сопоставляем игрока по порядку:
-        const opponent = opponents[seatIndex];
-        // Отбираем карты для этого оппонента
-        const opponentCards = allOpponentCards.filter(c => c.playerId === opponent.id);
+      {opponents.map((opponent, seatIndex) => {
+        // Отбираем карты для данного оппонента
+        const opponentCards = allOpponentCards.filter(
+          (c) => c.playerId === Number(opponent.id)
+        );
         const basePos = seatPositions[seatIndex] || seatPositions[seatPositions.length - 1];
 
         return (
           <div
-            key={seatIndex}
+            key={opponent.id} // используем id в качестве ключа
             style={{
               position: 'absolute',
               top: basePos.top,
@@ -37,10 +36,10 @@ const OpponentsContainer: React.FC<OpponentsContainerProps> = ({
             }}
           >
             <Opponent 
-              seatIndex={seatIndex} 
               cards={opponentCards} 
-              playerId={opponent.id}
+              playerId={opponent.id} // передаём корректный id
             />
+
           </div>
         );
       })}

@@ -76,6 +76,7 @@ const GameBoard: React.FC<GameBoardProps> = ({ rules = {} }) => {
   const hasReceivedSocketMessage = useRef(false);
   const initialDealDone = useRef(false);
   const [players, setPlayers] = useState<PlayerState[]>([]);
+  const [opponents, setOpponents] = useState<PlayerState[]>([]);
 
 
 
@@ -95,10 +96,15 @@ const GameBoard: React.FC<GameBoardProps> = ({ rules = {} }) => {
   }, [currentTurnRole]);
 
   useEffect(() => {
+    console.log('players', players);
+  }, [players]);
+
+  useEffect(() => {
     if (gameState.current) return;
     const { gameState: initialGameState, cards: initialCards } = initializeGameState(numPlayers);
     gameState.current = initialGameState;
     setCards(initialCards);
+
     // Если нужно, можно выполнить дополнительные действия, например, отправить состояние на сервер
     console.log('Initial game state:', initialGameState);
     flipStateRef.current = captureFlipState();
@@ -135,20 +141,7 @@ const GameBoard: React.FC<GameBoardProps> = ({ rules = {} }) => {
       } else {
         console.warn('Получено сообщение без состояния или без игроков:', data);
       }
-      if (gameState.current && gameState.current.data?.state?.players) {
-        const allPlayers = gameState.current.data.state.players;
-        // Получаем current_player_id из объекта состояния (это id текущего игрока)
-        const currentPlayerId = gameState.current.data.state.current_player_id;
-        // Находим индекс текущего игрока в исходном массиве
-        const currentIndex = allPlayers.findIndex(p => p.id === currentPlayerId);
-        // Если найден, переставляем так, чтобы текущий был первым
-        const orderedPlayers =
-          currentIndex >= 0
-            ? [...allPlayers.slice(currentIndex), ...allPlayers.slice(0, currentIndex)]
-            : allPlayers;
-        console.log('orderedPlayers', orderedPlayers);
-        setPlayers(orderedPlayers);
-      }
+      
 
       if (!hasReceivedSocketMessage.current) {
         hasReceivedSocketMessage.current = true;
@@ -191,15 +184,32 @@ const GameBoard: React.FC<GameBoardProps> = ({ rules = {} }) => {
       const incomingState = gameState.current;
       myIdRef.current = incomingState.user_id;
       console.log('myIdRef.current', myIdRef.current);
-      flipStateRef.current = captureFlipState();
-      // Обновляем карты: раздаем initialHandSize карт каждому игроку
+      
+        const allPlayers = incomingState.data.state.players;
+        console.log('allPlayers', allPlayers);
 
+        const currentIndex = allPlayers.findIndex(p => Number(p.id) === Number(myIdRef.current));
+        console.log('currentIndex', currentIndex);
+
+        const orderedPlayers =
+          currentIndex >= 0
+            ? [...allPlayers.slice(currentIndex), ...allPlayers.slice(0, currentIndex)]
+            : allPlayers;
+        console.log('orderedPlayers', orderedPlayers);
+        
+        const localOpponents = orderedPlayers.slice(1);
+        // console.log('players', players);
+        setPlayers(orderedPlayers);
+        setOpponents(localOpponents);
+
+        flipStateRef.current = captureFlipState();
 
       const updatedCards = dealInitialCards(
         incomingState,
         cards,
         numPlayers,           // число игроков
-        mergedRules.initialHandSize  // например, 6
+        mergedRules.initialHandSize,  // например, 6
+        localOpponents
       );
       // Сохраняем обновленный массив карт
       setCards(updatedCards);
@@ -239,10 +249,12 @@ const dealInitialCards = (
   incomingState: GameState,
   currentCards: Card[],
   numPlayers: number,
-  initialHandSize: number
+  initialHandSize: number,
+  opponents: PlayerState[]
 ): Card[] => {
   // Копируем массив, чтобы не мутировать исходное состояние
   const updatedCards = [...currentCards];
+
   // Получаем массив строк для карт текущего игрока из объекта, пришедшего из сокета.
   // Например: ["6-H-f", "7-S-t", ...]
   const playerCardStrings: string[] = incomingState.data.cards;
@@ -251,7 +263,7 @@ const dealInitialCards = (
   // Для удобства находим все карты, которые ещё в колоде
   let deckCards = updatedCards.filter((c) => c.location === 'deck');
 
-  const currentPlayerId = incomingState.data.state.current_player_id;
+  // const currentPlayerId = incomingState.data.state.current_player_id;
 
   // Раздаем карты текущему игроку:
   for (let i = 0; i < initialHandSize; i++) {
@@ -268,7 +280,7 @@ const dealInitialCards = (
     cardToDeal.rank = rank as Rank;
     cardToDeal.trumpFlag = trumpFlag;
     cardToDeal.location = 'player';
-    cardToDeal.playerId = currentPlayerId;
+    cardToDeal.playerId = myIdRef.current;
   }
 
   // Обновляем массив deckCards после раздачи текущему игроку
@@ -276,16 +288,17 @@ const dealInitialCards = (
 
   // Раздаем карты остальным игрокам.
   // Количество оппонентов = numPlayers - 1
-  const opponents = players.slice(1); // players из state
+  // const opponents = players.slice(1); // players из state
+  console.log('opponents', opponents);
   opponents.forEach((opponent, index) => {
     for (let i = 0; i < initialHandSize; i++) {
       const cardToDeal = deckCards.shift();
       if (!cardToDeal) break;
       cardToDeal.location = 'opponent';
-      cardToDeal.playerId = opponent.id;
-      // Можно оставить seatIndex как вспомогательный параметр для позиционирования,
-      // но основное – это поле playerId
+      cardToDeal.playerId = Number(opponent.id);
+      console.log('cardToDeal', cardToDeal);
       cardToDeal.seatIndex = index;
+
     }
   });
 
@@ -688,7 +701,7 @@ const dealInitialCards = (
       <OpponentsContainer 
       numPlayers={numPlayers} 
       allOpponentCards={cards.filter((c) => c.location === 'opponent')} 
-      opponents={players.filter(p => p.id !== gameState.current?.data.state.current_player_id)}
+      opponents={opponents}
       />
       <Player
         onBeat={handleBeat}
