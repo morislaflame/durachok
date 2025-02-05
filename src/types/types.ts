@@ -79,6 +79,20 @@ export interface IconProps extends React.SVGProps<SVGSVGElement> {
     huy?: string;
 }
 
+export interface GameActions {
+    data: GameActionData;
+    topic: string;
+    type: 'game_action';
+    user_id: number | null;
+}
+
+export interface GameActionData {
+    player_id: string;
+    type: 'attack_pass' | 'attack_card' | 'defend_card' | 'defend_pass';
+    defending_card: string | null;
+    attacking_card: string | null;
+}
+
 export interface GameState {
     data: {
         actions: GameAction[];
@@ -86,7 +100,7 @@ export interface GameState {
         cards: string[];
     };
     topic: string;
-    type: 'game_state';
+    type: 'game_state' | 'game_action';
     user_id: number;
 }
 

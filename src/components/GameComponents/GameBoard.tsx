@@ -14,8 +14,10 @@ import {
   SlotValidationContext,
   GameState,
   PlayerState,
+  GameActions,
 } from '../../types/types';
 import CardItem from './CardItem';
+
 import OpponentsContainer from './OpponentsContainer';
 import Player from './Player';
 import styles from './styles/GameBoard.module.css';
@@ -64,10 +66,13 @@ const GameBoard: React.FC<GameBoardProps> = ({ rules = {} }) => {
 
   // Ссылки для анимации и проверки
   const gameState = useRef<GameState | null>(null);
+  const [gameActionState, setGameActionState] = useState<GameActions | null>(null);
   const tablePairsRef = useRef<TablePair[]>(tablePairs);
   const cardsRef = useRef<Card[]>(cards);
   const flipStateRef = useRef<ReturnType<typeof Flip.getState> | null>(null);
+
   const newFlipStateRef = useRef<ReturnType<typeof Flip.getState> | null>(null);
+  const opponentsFlipStateRef = useRef<ReturnType<typeof Flip.getState> | null>(null);
   const gameBoardRef = useRef<HTMLDivElement>(null);
   const discardCardsRef = useRef<ReturnType<typeof Flip.getState> | null>(null);
   const draggableRefs = useRef<Record<string, Draggable>>({});
@@ -98,6 +103,7 @@ const GameBoard: React.FC<GameBoardProps> = ({ rules = {} }) => {
   useEffect(() => {
     console.log('players', players);
   }, [players]);
+
 
   useEffect(() => {
     if (gameState.current) return;
@@ -132,21 +138,26 @@ const GameBoard: React.FC<GameBoardProps> = ({ rules = {} }) => {
     const ws = new WebSocket(`wss://durak-back.1k.games/api/v1/game/${gameId}/ws?token=${token}`);
     setSocket(ws);
     ws.onmessage = (event) => {
-      const data = JSON.parse(event.data) as GameState;
-      gameState.current = data;
-      const playersLength = data.data?.state?.players?.length;
+      const data = JSON.parse(event.data) as GameState | GameActions;
+      if (data.type === 'game_action') {
+        setGameActionState(data as GameActions);
+      } else {
+        gameState.current = data;
+        const playersLength = data.data?.state?.players?.length;
+
       if (playersLength !== undefined) {
         setNumPlayers(playersLength);
         setPlayers(data.data.state.players);
       } else {
         console.warn('Получено сообщение без состояния или без игроков:', data);
       }
-      
 
       if (!hasReceivedSocketMessage.current) {
         hasReceivedSocketMessage.current = true;
       }
       console.log('gameState', data);
+      }
+      
     };
     ws.onerror = (error) => {
       console.error('WebSocket error:', error);
@@ -156,13 +167,6 @@ const GameBoard: React.FC<GameBoardProps> = ({ rules = {} }) => {
     };
     
   }, [gameId]);
-
-  useEffect(() => {
-    
-  }, [gameState.current]);
-  
-  
-
 
   // Запуск Flip-анимации при изменении состояния карточек
   useLayoutEffect(() => {
@@ -255,17 +259,12 @@ const dealInitialCards = (
   // Копируем массив, чтобы не мутировать исходное состояние
   const updatedCards = [...currentCards];
 
-  // Получаем массив строк для карт текущего игрока из объекта, пришедшего из сокета.
-  // Например: ["6-H-f", "7-S-t", ...]
   const playerCardStrings: string[] = incomingState.data.cards;
   console.log('playerCardStrings', playerCardStrings);
   
   // Для удобства находим все карты, которые ещё в колоде
   let deckCards = updatedCards.filter((c) => c.location === 'deck');
 
-  // const currentPlayerId = incomingState.data.state.current_player_id;
-
-  // Раздаем карты текущему игроку:
   for (let i = 0; i < initialHandSize; i++) {
     // Берем первую доступную карту из колоды
     const cardToDeal = deckCards.shift();
@@ -286,9 +285,6 @@ const dealInitialCards = (
   // Обновляем массив deckCards после раздачи текущему игроку
   deckCards = updatedCards.filter((c) => c.location === 'deck');
 
-  // Раздаем карты остальным игрокам.
-  // Количество оппонентов = numPlayers - 1
-  // const opponents = players.slice(1); // players из state
   console.log('opponents', opponents);
   opponents.forEach((opponent, index) => {
     for (let i = 0; i < initialHandSize; i++) {
@@ -532,13 +528,19 @@ const dealInitialCards = (
           defending_card: null,
           attacking_card: cardString,
         };
+        const attackPass = {
+          player_id: myIdRef.current.toString(),
+          type: 'attack_pass',
+          defending_card: null,
+          attacking_card: null
+        }
+
         if (socket && socket.readyState === WebSocket.OPEN) {
           socket.send(JSON.stringify(eventObj));
+          socket.send(JSON.stringify(attackPass));
         } else {
           console.error("Socket is not open, readyState:", socket?.readyState);
         }
-        
-        
       },
     });
   };
@@ -613,8 +615,61 @@ const dealInitialCards = (
     );
   };
 
+  useEffect(() => {
+    if (gameActionState?.type !== 'game_action') return;
+
+    // Извлекаем данные действия (обрабатываем только атаки)
+    const action = gameActionState.data;
+    if (action.type !== 'attack_card') return;
+
+    flipStateRef.current = captureFlipState();
+  
+    // Парсим строку карты (например, "10-C-f")
+    const { rank, suit, trumpFlag } = parseCard(action.attacking_card || '');
+    const attackingPlayerId = Number(action.player_id);
+  
+    // Находим свободный слот в локальных tablePairs
+    const freeIndex = tablePairsRef.current.findIndex((p) => p.attackCardId === null);
+    if (freeIndex === -1) return;
+  
+    // Ищем последнюю карту в руке оппонента с нужным playerId
+    const found = cardsRef.current
+      .map((c, i) => ({ c, i }))
+      .filter(({ c }) => c.playerId === attackingPlayerId && c.location === 'opponent')
+      .pop();
+    if (!found) return;
+    const { c: cardToMove } = found;
+    const cardId = cardToMove.stableId;
+    if (!cardId) return;
+  
+    // Обновляем tablePairs: проставляем в найденном слоте идентификатор карты
+    setTablePairs((prev) =>
+      prev.map((p, i) => (i === freeIndex ? { ...p, attackCardId: cardId } : p))
+    );
+  
+    // Обновляем карту: присваиваем ей новые свойства, чтобы она перешла в слот на столе
+    setCards((prev) =>
+      prev.map((c) =>
+        c.stableId === cardId
+          ? {
+              ...c,
+              location: 'table',
+              tablePairIndex: freeIndex,
+              tableRole: 'attack',
+              rank,
+              suit,
+              trumpFlag,
+            }
+          : c
+      )
+    );
+  
+
+  }, [gameActionState]);
+  
   const handleDealAfterBeat = () => {
     flipStateRef.current = captureFlipState();
+
     setCards((prev) => {
       const updated = [...prev];
       const deckCards = updated.filter((c) => c.location === 'deck');
@@ -672,28 +727,7 @@ const dealInitialCards = (
 
   const isTakeVisible = tablePairs.some((p) => p.attackCardId && !p.coverCardId);
 
-  const handleOpponentMove = () => {
-    const uncoveredIndex = tablePairs.findIndex((p) => p.attackCardId && !p.coverCardId);
-    if (uncoveredIndex === -1) {
-      console.log('Нет непокрытых атак — ход противника не нужен');
-      return;
-    }
-    const attackCardId = tablePairs[uncoveredIndex].attackCardId!;
-    const attackCard = cards.find((c) => c.stableId === attackCardId);
-    if (!attackCard) return;
-    const oppCards = cards.filter((c) => c.location === 'opponent');
-    flipStateRef.current = captureFlipState();
-
-    const suitableCard = oppCards.find((defCard) => {
-      const { defendValid } = validateDefense(defCard, attackCard, uncoveredIndex);
-      return defendValid;
-    });
-    if (!suitableCard) {
-      console.log('Противник не смог покрыть — нет подходящей карты');
-      return;
-    }
-    placeCoverCard(suitableCard.stableId!, uncoveredIndex, flipStateRef.current!);
-  };
+  
 
 
   return (
@@ -714,7 +748,6 @@ const dealInitialCards = (
         <p>Current role: {currentTurnRole}</p>
         <button onClick={() => setCurrentTurnRole('attack')}>Attack</button>
         <button onClick={() => setCurrentTurnRole('defend')}>Defend</button>
-        <button onClick={handleOpponentMove}>Ход противника</button>
       </div>
       {tablePairs.map((pair, i) => {
         const pos = TABLE_PAIRS_POSITIONS[i];
