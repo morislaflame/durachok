@@ -644,28 +644,9 @@ const dealInitialCards = (
     Flip.to(oldState, { duration: 0.8, ease: 'power4.out', absolute: true, zIndex: 100 });
   };
 
-  const hasAtLeastOneAttack = tablePairsRef.current.some((p) => p.attackCardId !== null);
-  const allAttacksCovered = tablePairsRef.current.every((p) => !p.attackCardId || p.coverCardId);
-  const isBeatVisible = hasAtLeastOneAttack && allAttacksCovered;
 
-  const handleBeat = () => {
-    const coveredCardIds = tablePairsRef.current.flatMap((p) =>
-      p.attackCardId && p.coverCardId ? [p.attackCardId, p.coverCardId] : []
-    );
-    discardCardsRef.current = Flip.getState(
-      coveredCardIds
-        .map((id) => document.querySelector(`[data-flip-id="${id}"]`))
-        .filter(Boolean) as HTMLElement[],
-      { props: 'transform, top, left, zIndex' }
-    );
-    setCards((prev) =>
-      prev.map((c) => (coveredCardIds.includes(c.stableId!) ? { ...c, location: 'discard' } : c))
-    );
 
-    setTablePairs((prev) =>
-      prev.map((p) => (p.attackCardId && p.coverCardId ? { attackCardId: null, coverCardId: null } : p))
-    );
-  };
+  
 
   useEffect(() => {
     if (gameActionState?.type !== 'game_action') return;
@@ -712,7 +693,7 @@ const dealInitialCards = (
             : c
         )
       );
-    } else if (action.type === 'defend_card' || action.type === 'defend_take') {
+    } else if (action.type === 'defend_card') {
       flipStateRef.current = captureFlipState();
 
       const { rank, suit, trumpFlag } = parseCard(action.defending_card || '');
@@ -800,24 +781,42 @@ const dealInitialCards = (
   }, [cards]);
 
   const handleTakeCards = () => {
-    flipStateRef.current = captureFlipState();
-    const tableCardIds = tablePairsRef.current.flatMap((p) =>
-      [p.attackCardId, p.coverCardId].filter(Boolean) as string[]
-    );
-    setCards((prev) =>
-      prev.map((c) =>
-        tableCardIds.includes(c.stableId!)
-          ? { ...c, location: 'player', tablePairIndex: undefined, tableRole: undefined }
-          : c
-      )
-    );
-
-    setTablePairs((prev) => prev.map(() => ({ attackCardId: null, coverCardId: null })));
+    if (socket && socket.readyState === WebSocket.OPEN) {
+      const eventObj = {
+        player_id: myIdRef.current.toString(),
+        type: 'defend_take',
+        defending_card: null,
+        attacking_card: null,
+      };
+      socket.send(JSON.stringify(eventObj));
+    } else {
+      console.error("Socket is not open, readyState:", socket?.readyState);
+    }
   };
 
-  const isTakeVisible = tablePairs.some((p) => p.attackCardId && !p.coverCardId);
-
+  const handleBeat = () => {
+    if (socket && socket.readyState === WebSocket.OPEN) {
+      const eventObj = {
+        player_id: myIdRef.current.toString(),
+        type: 'attack_pass',
+        defending_card: null,
+        attacking_card: null,
+      };
+      socket.send(JSON.stringify(eventObj));
+    } else {
+      console.error("Socket is not open, readyState:", socket?.readyState);
+    }
+  };
   
+  
+
+  const isTakeVisible =
+  gameState.current?.data?.actions?.some((action) => action.type === 'defend_take') ||
+  false;
+
+  const isBeatVisible =
+  gameState.current?.data?.actions?.some((action) => action.type === 'attack_pass') || false;
+
 
 
   return (

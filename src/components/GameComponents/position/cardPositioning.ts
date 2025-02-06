@@ -165,6 +165,7 @@ function getTablePairStyle(card: Card): CSSProperties {
       zIndex,
       width: '50px',
       height: '70px',
+      transform: 'none',
     };
   }
   
