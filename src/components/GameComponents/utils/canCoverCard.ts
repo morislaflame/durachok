@@ -2,7 +2,7 @@
 import { Card, Suit, Rank } from '../../../types/types';
 
 // Старшинство рангов
-const rankOrder = ['6','7','8','9','10','J','Q','K','A'];
+const rankOrder = ['6','7','8','9','10','11','12','13','14'];
 
 function rankValue(r: Rank): number {
   return rankOrder.indexOf(r);

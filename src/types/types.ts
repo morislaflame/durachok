@@ -88,7 +88,7 @@ export interface GameActions {
 
 export interface GameActionData {
     player_id: string;
-    type: 'attack_pass' | 'attack_card' | 'defend_card' | 'defend_pass';
+    type: 'attack_pass' | 'attack_card' | 'defend_card' | 'defend_take';
     defending_card: string | null;
     attacking_card: string | null;
 }
@@ -106,9 +106,10 @@ export interface GameState {
 
 export interface GameAction {
     player_id: string;
-    type: 'attack_pass' | 'attack_card' | 'defend_card' | 'defend_pass';
+    type: 'attack_pass' | 'attack_card' | 'defend_card' | 'defend_take';
     defending_card: string | null;
     attacking_card: string | null;
+
 }
 
 export interface GameStateState {
