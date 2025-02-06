@@ -33,7 +33,6 @@ export interface Player {
 export type GameRules = {
     maxTablePairs: number;
     distanceThreshold: number;
-    initialHandSize: number;
     attackRules: AttackRule[];
     defendRules: DefendRule[];
     slotRules: SlotRule[];

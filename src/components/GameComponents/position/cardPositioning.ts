@@ -18,7 +18,7 @@ export function getCardStyle(
 ): CSSProperties {
   // Группа: все карты, у которых такая же location и такой же seatIndex
   const sameLocationCards = allCards.filter(
-    (c) => c.location === card.location && c.seatIndex === card.seatIndex
+    (c) => c.location === card.location 
   );
   
   const indexInGroup = sameLocationCards.findIndex((c) => c.stableId === card.stableId);
@@ -86,21 +86,31 @@ export function getTrumpCardStyle(): CSSProperties {
 
 // Карты игрока (снизу)
 function getPlayerCardStyle(indexInGroup: number, totalCards: number): CSSProperties {
-  const overlap = Math.min(50, 400 / totalCards);
+  // Максимальная ширина, которую может занимать рука (в пикселях)
+  const maxHandWidth = 250; 
+  // Ширина одной карты (как она задана ниже)
+  const cardWidth = 60;
+
+  const calculatedOverlap = totalCards > 1 ? maxHandWidth / (totalCards - 1) : 0;
+  // Не допускаем перекрытия больше, чем заданный максимум (например, 50px)
+  const overlap = Math.min(50, calculatedOverlap);
+
+  // Центрирование карт: смещаем всю группу так, чтобы она была по центру
   const offsetX = -((totalCards - 1) * overlap) / 2;
   const rotationAngle = (indexInGroup - totalCards / 2) * 2;
 
   return {
     position: 'absolute',
     top: '80%',
-    left: '45%', // Центрируем относительно GameBoard
+    left: '45%', // Относительно родительского контейнера (GameBoard)
     transform: `translateX(${offsetX + overlap * indexInGroup}px) rotate(${rotationAngle}deg)`,
     transformOrigin: 'bottom center',
     zIndex: 10 + indexInGroup,
-    width: '60px',
+    width: `${cardWidth}px`,
     height: '85px',
   };
 }
+
 
 /**
  * Карты оппонента:
