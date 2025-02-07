@@ -744,23 +744,41 @@ const dealInitialCards = (
   }, [gameActionState]);
 
   useEffect(() => {
-    if (!gameState.current) return;
-  
-    const prevState = prevGameStateRef.current?.data.state;
-    const newState = gameState.current.data.state;
-  
-    // Здесь вы выполняете сравнение: если в предыдущем состоянии хотя бы один слот имел defender_taking === true,
-    // а в новом состоянии стол пуст, то устанавливаем флаг, что игрок взял карты.
-    if (
-      prevState?.table.some((slot) => slot.defender_taking === true) &&
-      newState?.table.length === 0
-    ) {
-      setCardsTaken(true);
-    }
-  
-    // Обновляем ref для следующего сравнения
+  if (!gameState.current) return;
+  const prevState = prevGameStateRef.current?.data.state;
+  const newState = gameState.current.data.state;
+  if (!prevState || !newState) {
     prevGameStateRef.current = gameState.current;
-  }, [gameState.current]);
+    return;
+  }
+  
+  // Логика для взятия карт:
+  if (
+    prevState.table.some((slot) => slot.defender_taking === true) &&
+    newState.table.length === 0
+  ) {
+    setCardsTaken(true);
+  }
+  
+  // Логика для битого:
+  const prevTableCount = prevState.table.reduce((acc, slot) => {
+    const count =
+      (slot.attacking ? 1 : 0) +
+      (slot.defending ? 1 : 0);
+    return acc + count;
+  }, 0);
+  
+  const prevBeatenCount = prevState.beaten.length;
+  if (prevTableCount > 0 && newState.table.length === 0) {
+    const beatenIncrease = newState.beaten.length - prevBeatenCount;
+    if (beatenIncrease >= prevTableCount) {
+      setIsBeaten(true);
+    }
+  }
+  
+  // Обновляем prevGameStateRef
+  prevGameStateRef.current = gameState.current;
+}, [gameState.current]);
 
 useEffect(() => {
   if (!cardsTaken) return;
@@ -798,48 +816,6 @@ useEffect(() => {
   setCardsTaken(false);
 }, [cardsTaken]);
 
-// 
-
-// 1-й useEffect: сравнение предыдущего и нового состояния GameState
-useEffect(() => {
-  if (!gameState.current) return;
-  const prevState = prevGameStateRef.current?.data.state;
-  const newState = gameState.current.data.state;
-  if (!prevState || !newState) return;
-  console.log('prevState', prevState);
-  console.log('newState', newState);
-  
-
-  // Подсчитаем количество карт на столе в предыдущем состоянии.
-  // Предполагается, что в каждом слоте таблицы (state.table) могут быть две карты: attacking и defending.
-  // Если их нет, считаем как 0.
-  const prevTableCount = prevState.table.reduce((acc, slot) => {
-    const count =
-      (slot.attacking ? 1 : 0) +
-      (slot.defending ? 1 : 0);
-    return acc + count;
-  }, 0);
-  console.log('prevTableCount', prevTableCount);
-  
-  // Запомним количество beaten-карт в предыдущем состоянии.
-  const prevBeatenCount = prevState.beaten.length;
-  console.log('prevBeatenCount', prevBeatenCount);
-  
-  // Если раньше на столе было хотя бы 1 карта, а теперь стол пустой,
-  // и количество beaten-карт увеличилось на число, не меньше, чем было на столе,
-  // то считаем, что карты переместились в битое.
-  if (prevTableCount > 0 && newState.table.length === 0) {
-    const beatenIncrease = newState.beaten.length - prevBeatenCount;
-    console.log('beatenIncrease', beatenIncrease);
-    if (beatenIncrease >= prevTableCount) {
-      setIsBeaten(true);
-    }
-  }
-  console.log('isBeaten', isBeaten);
-  
-  // Обновляем ref для следующего сравнения
-  prevGameStateRef.current = gameState.current;
-}, [gameState.current]);
 
 // 2-й useEffect: обработка флага isBeaten и перемещение карт со стола в discard
 useEffect(() => {
@@ -856,6 +832,10 @@ useEffect(() => {
           : card
       )
     );
+    setTablePairs(() => Array.from({ length: mergedRules.maxTablePairs }, () => ({
+        attackCardId: null,
+        coverCardId: null,
+      })))
 
     // Сбрасываем флаг, чтобы не триггерить повторно
     setIsBeaten(false);
