@@ -75,7 +75,6 @@ const GameBoard: React.FC<GameBoardProps> = ({ rules = {} }) => {
 
   const newFlipStateRef = useRef<ReturnType<typeof Flip.getState> | null>(null);
   const gameBoardRef = useRef<HTMLDivElement>(null);
-  const discardCardsRef = useRef<ReturnType<typeof Flip.getState> | null>(null);
   const draggableRefs = useRef<Record<string, Draggable>>({});
   const roleRef = useRef<'attack' | 'defend' | 'watching'>(currentTurnRole);
   const myIdRef = useRef<number>(0);
@@ -85,6 +84,13 @@ const GameBoard: React.FC<GameBoardProps> = ({ rules = {} }) => {
   const [opponents, setOpponents] = useState<PlayerState[]>([]);
   const [cardsTaken, setCardsTaken] = useState<boolean>(false);
   const [isBeaten, setIsBeaten] = useState<boolean>(false);
+
+  interface CardsTakenDetails {
+    tableTaker: PlayerState | null;           // игрок, который взял карты со стола
+    deckIncreases: { [playerId: string]: number }; // для каждого другого игрока число добавленных карт из колоды
+  }
+  
+  const [cardsTakenDetails, setCardsTakenDetails] = useState<CardsTakenDetails | null>(null);
 
 
 
@@ -743,20 +749,44 @@ const dealInitialCards = (
     console.log('gameActionState', gameActionState);
   }, [gameActionState]);
 
+
+
   useEffect(() => {
   if (!gameState.current) return;
   const prevState = prevGameStateRef.current?.data.state;
   const newState = gameState.current.data.state;
+  // console.log('prevState', prevState);
+  // console.log('newState', newState);
   if (!prevState || !newState) {
     prevGameStateRef.current = gameState.current;
     return;
   }
-  
+
   // Логика для взятия карт:
-  if (
-    prevState.table.some((slot) => slot.defender_taking === true) &&
-    newState.table.length === 0
-  ) {
+  if (prevState.table.some(slot => slot.defender_taking === true) && newState.table.length === 0) {
+    let tableTaker: PlayerState | null = null;
+    const deckIncreases: { [playerId: string]: number } = {};
+    
+    // Пройдём по всем игрокам и вычислим разницу в количестве карт.
+    newState.players.forEach(newPlayer => {
+      const prevPlayer = prevState.players.find(p => p.id === newPlayer.id);
+      if (!prevPlayer) return;
+      const oldCount = prevPlayer.cards.length;
+      const newCount = newPlayer.cards.length;
+      const diff = newCount - oldCount;
+      if (diff > 0) {
+        // Если у игрока выставлен флаг is_defending – считаем его тем, кто взял карты со стола.
+        // (Вы можете изменить логику выбора tableTaker, если нужно.)
+        if (newPlayer.is_defending) {
+          tableTaker = newPlayer;
+        } else {
+          deckIncreases[newPlayer.id] = diff;
+        }
+      }
+    });
+    
+    // Сохраним детали раздачи и установим флаг.
+    setCardsTakenDetails({ tableTaker, deckIncreases });
     setCardsTaken(true);
   }
   
@@ -782,39 +812,90 @@ const dealInitialCards = (
 
 useEffect(() => {
   if (!cardsTaken) return;
-    flipStateRef.current = captureFlipState();
-    // Находим защитника из нового списка игроков (предполагаем, что у него is_defending === true)
-    const prevState = prevGameStateRef.current?.data.state;
-    const defender = prevState?.players.find((p) => p.is_defending);
-    console.log('defender', defender);
-
-    if (defender) {
-      console.log('Обнаружено, что защитник взял карты со стола, defender=', defender);
-      // Обновляем локальные карточки: все карточки, которые были на столе,
-      // присваиваем защитнику (если его id совпадает с myIdRef.current – наш игрок, иначе – оппонент)
-      setCards((prevCards) =>
-        prevCards.map((card) =>
-          
-          card.location === 'table'
-            ? {
-                ...card,
-                location: Number(defender.id) === myIdRef.current ? 'player' : 'opponent',
-                playerId: Number(defender.id),
-                tablePairIndex: undefined,
-                tableRole: undefined,
-              }
-            : card
-        )
-      );
-      setTablePairs(() => Array.from({ length: mergedRules.maxTablePairs }, () => ({
-        attackCardId: null,
-        coverCardId: null,
-      })))
-      
+  if (!gameState.current || !cardsTakenDetails) return;
+  
+  // Захватываем flip-стейт, если требуется для анимации
+  flipStateRef.current = captureFlipState();
+  
+  const { tableTaker, deckIncreases } = cardsTakenDetails;
+  const newData = gameState.current.data; // можно использовать для получения новых строк карт
+  
+  // Если есть tableTaker – переносим все карты со стола в его руку:
+  if (tableTaker) {
+    setCards(prevCards =>
+      prevCards.map(card =>
+        card.location === 'table'
+          ? {
+              ...card,
+              // Если наш игрок – 'player', иначе 'opponent'
+              location: Number(tableTaker.id) === myIdRef.current ? 'player' : 'opponent',
+              playerId: Number(tableTaker.id),
+              tablePairIndex: undefined,
+              tableRole: undefined,
+            }
+          : card
+      )
+    );
+  }
+  
+  // Для каждого игрока, у которого разница положительна, переводим из колоды нужное количество карт:
+  Object.entries(deckIncreases).forEach(([playerId, addedCount]) => {
+    if (Number(playerId) === myIdRef.current) {
+      // Для текущего игрока: берем новые строки карт и обновляем свойства через parseCard.
+      const addedCardStrings = newData.cards.slice(/* индекс старого количества */ /* индекс нового количества */);
+      // Если у вас нет сохранённого старого количества, можно решить эту проблему, добавив его в детали.
+      setCards(prevCards => {
+        const updatedCards = [...prevCards];
+        for (let i = 0; i < addedCount; i++) {
+          const deckIndex = updatedCards.findIndex(c => c.location === 'deck');
+          if (deckIndex !== -1) {
+            const cardStr = addedCardStrings[i];
+            const { suit, rank, trumpFlag } = parseCard(cardStr);
+            updatedCards[deckIndex] = {
+              ...updatedCards[deckIndex],
+              suit,
+              rank,
+              trumpFlag,
+              location: 'player',
+              playerId: myIdRef.current,
+            };
+          }
+        }
+        return updatedCards;
+      });
+    } else {
+      // Для оппонентов – просто переводим из колоды нужное количество карт в руку.
+      const opponentId = Number(playerId);
+      setCards(prevCards => {
+        const updatedCards = [...prevCards];
+        for (let i = 0; i < addedCount; i++) {
+          const deckIndex = updatedCards.findIndex(c => c.location === 'deck');
+          if (deckIndex !== -1) {
+            updatedCards[deckIndex] = {
+              ...updatedCards[deckIndex],
+              location: 'opponent',
+              playerId: opponentId,
+            };
+          }
+        }
+        return updatedCards;
+      });
     }
-
+  });
+  
+  // Можно также сбросить tablePairs (если требуется очистка стола)
+  setTablePairs(() =>
+    Array.from({ length: mergedRules.maxTablePairs }, () => ({
+      attackCardId: null,
+      coverCardId: null,
+    }))
+  );
+  
+  // Сбрасываем флаг и детали, чтобы не повторять операцию
   setCardsTaken(false);
+  setCardsTakenDetails(null);
 }, [cardsTaken]);
+
 
 
 // 2-й useEffect: обработка флага isBeaten и перемещение карт со стола в discard
@@ -846,60 +927,7 @@ useEffect(() => {
   
   
 
-const handleDealAfterBeat = () => {
-  flipStateRef.current = captureFlipState();
-  
-  setCards((prev) => {
-    const updated = [...prev];
-    const deckCards = updated.filter((c) => c.location === 'deck');
-    let deckPos = 0;
 
-    // Функция для дозаполнения руки для конкретного игрока
-    const refillHand = (playerId: number, location: 'player' | 'opponent', seat?: number) => {
-      // Определяем ожидаемый размер руки, исходя из данных с сервера
-      let expectedHandSize = 0;
-      if (playerId === myIdRef.current) {
-        expectedHandSize = gameState.current!.data.cards.length;
-      } else {
-        const playerState = gameState.current!.data.state.players.find(p => Number(p.id) === playerId);
-        expectedHandSize = playerState?.cards.length || 0;
-      }
-      const currentCount = updated.filter((c) => c.location === location && (seat === undefined || c.seatIndex === seat)).length;
-      const needed = expectedHandSize - currentCount;
-      for (let i = 0; i < needed && deckPos < deckCards.length; i++) {
-        deckCards[deckPos].location = location;
-        if (seat !== undefined) deckCards[deckPos].seatIndex = seat;
-        deckPos++;
-      }
-    };
-
-    // Дозаполняем руку текущего игрока
-    refillHand(myIdRef.current, 'player');
-
-    // Дозаполняем руки оппонентов
-    opponents.forEach((opponent, index) => {
-      refillHand(Number(opponent.id), 'opponent', index);
-    });
-    
-    return updated;
-  });
-};
-
-
-  useLayoutEffect(() => {
-    if (discardCardsRef.current) {
-      Flip.from(discardCardsRef.current, {
-        duration: 1,
-        ease: 'power2.out',
-        absolute: true,
-        scale: true,
-        onComplete: () => {
-          discardCardsRef.current = null;
-          handleDealAfterBeat();
-        },
-      });
-    }
-  }, [cards]);
 
   const handleTakeCards = () => {
     if (socket && socket.readyState === WebSocket.OPEN) {
