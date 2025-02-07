@@ -348,9 +348,11 @@ const dealInitialCards = (
 
       const draggable = Draggable.create(el, {
         type: 'x,y',
+        zIndexBoost: false,
         onPress: () => {
           newFlipStateRef.current = Flip.getState(el, { props: 'transform, top, left, zIndex' });
         },
+
         onDragEnd: () => {
           flipStateRef.current = captureFlipState();
           handlePlayerCardDrop(card.stableId!, flipStateRef.current!);
@@ -660,7 +662,7 @@ const dealInitialCards = (
   };
 
   const revertCard = (cardId: string, oldState: ReturnType<typeof Flip.getState>) => {
-    Flip.to(oldState, { duration: 0.8, ease: 'power4.out', absolute: true, zIndex: 100 });
+    Flip.to(oldState, { duration: 0.8, ease: 'power4.out', absolute: true });
   };
 
   useEffect(() => {

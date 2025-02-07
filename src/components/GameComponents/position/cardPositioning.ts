@@ -127,7 +127,7 @@ function getPlayerCardStyle(indexInGroup: number, totalCards: number, containerW
     left: '45%', // Относительно родительского контейнера (например, GameBoard)
     transform: `translateX(${offsetX + overlap * indexInGroup}px) rotate(${rotationAngle}deg)`,
     transformOrigin: 'bottom center',
-    zIndex: 10 + indexInGroup,
+    zIndex: 1000 + indexInGroup,
     width: `${cardWidth}px`,
     height: '85px',
   };
