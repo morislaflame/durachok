@@ -1017,12 +1017,6 @@ useEffect(() => {
 }, [isBeaten]);
 
 
-
-  
-  
-
-
-
   const handleTakeCards = () => {
     if (socket && socket.readyState === WebSocket.OPEN) {
       const eventObj = {
