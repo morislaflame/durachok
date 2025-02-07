@@ -84,6 +84,7 @@ const GameBoard: React.FC<GameBoardProps> = ({ rules = {} }) => {
   const [players, setPlayers] = useState<PlayerState[]>([]);
   const [opponents, setOpponents] = useState<PlayerState[]>([]);
   const [cardsTaken, setCardsTaken] = useState<boolean>(false);
+  const [isBeaten, setIsBeaten] = useState<boolean>(false);
 
 
 
@@ -588,16 +589,16 @@ const dealInitialCards = (
           defending_card: null,
           attacking_card: cardString,
         };
-        const attackPass = {
-          player_id: myIdRef.current.toString(),
-          type: 'attack_pass',
-          defending_card: null,
-          attacking_card: null
-        }
+        // const attackPass = {
+        //   player_id: myIdRef.current.toString(),
+        //   type: 'attack_pass',
+        //   defending_card: null,
+        //   attacking_card: null
+        // }
 
         if (socket && socket.readyState === WebSocket.OPEN) {
           socket.send(JSON.stringify(eventObj));
-          socket.send(JSON.stringify(attackPass));
+          // socket.send(JSON.stringify(attackPass));
         } else {
           console.error("Socket is not open, readyState:", socket?.readyState);
         }
@@ -652,10 +653,6 @@ const dealInitialCards = (
   const revertCard = (cardId: string, oldState: ReturnType<typeof Flip.getState>) => {
     Flip.to(oldState, { duration: 0.8, ease: 'power4.out', absolute: true, zIndex: 100 });
   };
-
-
-
-  
 
   useEffect(() => {
     if (gameActionState?.type !== 'game_action') return;
@@ -751,8 +748,6 @@ const dealInitialCards = (
   
     const prevState = prevGameStateRef.current?.data.state;
     const newState = gameState.current.data.state;
-    console.log('prevState', prevState);
-    console.log('newState', newState);
   
     // Здесь вы выполняете сравнение: если в предыдущем состоянии хотя бы один слот имел defender_taking === true,
     // а в новом состоянии стол пуст, то устанавливаем флаг, что игрок взял карты.
@@ -802,6 +797,71 @@ useEffect(() => {
 
   setCardsTaken(false);
 }, [cardsTaken]);
+
+// 
+
+// 1-й useEffect: сравнение предыдущего и нового состояния GameState
+useEffect(() => {
+  if (!gameState.current) return;
+  const prevState = prevGameStateRef.current?.data.state;
+  const newState = gameState.current.data.state;
+  if (!prevState || !newState) return;
+  console.log('prevState', prevState);
+  console.log('newState', newState);
+  
+
+  // Подсчитаем количество карт на столе в предыдущем состоянии.
+  // Предполагается, что в каждом слоте таблицы (state.table) могут быть две карты: attacking и defending.
+  // Если их нет, считаем как 0.
+  const prevTableCount = prevState.table.reduce((acc, slot) => {
+    const count =
+      (slot.attacking ? 1 : 0) +
+      (slot.defending ? 1 : 0);
+    return acc + count;
+  }, 0);
+  console.log('prevTableCount', prevTableCount);
+  
+  // Запомним количество beaten-карт в предыдущем состоянии.
+  const prevBeatenCount = prevState.beaten.length;
+  console.log('prevBeatenCount', prevBeatenCount);
+  
+  // Если раньше на столе было хотя бы 1 карта, а теперь стол пустой,
+  // и количество beaten-карт увеличилось на число, не меньше, чем было на столе,
+  // то считаем, что карты переместились в битое.
+  if (prevTableCount > 0 && newState.table.length === 0) {
+    const beatenIncrease = newState.beaten.length - prevBeatenCount;
+    console.log('beatenIncrease', beatenIncrease);
+    if (beatenIncrease >= prevTableCount) {
+      setIsBeaten(true);
+    }
+  }
+  console.log('isBeaten', isBeaten);
+  
+  // Обновляем ref для следующего сравнения
+  prevGameStateRef.current = gameState.current;
+}, [gameState.current]);
+
+// 2-й useEffect: обработка флага isBeaten и перемещение карт со стола в discard
+useEffect(() => {
+  if (isBeaten) {
+    console.log('isBeaten === true');
+    // Захватываем состояние для анимации (если требуется)
+    flipStateRef.current = captureFlipState();
+    
+    // Обновляем карточки: все, что были на столе, переводим в discard
+    setCards((prevCards) =>
+      prevCards.map((card) =>
+        card.location === 'table'
+          ? { ...card, location: 'discard' }
+          : card
+      )
+    );
+
+    // Сбрасываем флаг, чтобы не триггерить повторно
+    setIsBeaten(false);
+  }
+}, [isBeaten]);
+
 
   
   
