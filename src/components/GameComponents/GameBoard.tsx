@@ -88,9 +88,11 @@ const GameBoard: React.FC<GameBoardProps> = ({ rules = {} }) => {
   interface CardsTakenDetails {
     tableTaker: PlayerState | null;           // игрок, который взял карты со стола
     deckIncreases: { [playerId: string]: number }; // для каждого другого игрока число добавленных карт из колоды
+    currentPlayerDiff: string[];
   }
   
   const [cardsTakenDetails, setCardsTakenDetails] = useState<CardsTakenDetails | null>(null);
+  const prevPlayerCardsRef = useRef<string[]>([]);
 
 
 
@@ -759,6 +761,9 @@ const dealInitialCards = (
   // console.log('newState', newState);
   if (!prevState || !newState) {
     prevGameStateRef.current = gameState.current;
+    if (gameState.current.data.cards) {
+      prevPlayerCardsRef.current = [...gameState.current.data.cards];
+    }
     return;
   }
 
@@ -766,27 +771,41 @@ const dealInitialCards = (
   if (prevState.table.some(slot => slot.defender_taking === true) && newState.table.length === 0) {
     let tableTaker: PlayerState | null = null;
     const deckIncreases: { [playerId: string]: number } = {};
+    let currentPlayerDiff: string[] = [];
     
-    // Пройдём по всем игрокам и вычислим разницу в количестве карт.
     newState.players.forEach(newPlayer => {
       const prevPlayer = prevState.players.find(p => p.id === newPlayer.id);
       if (!prevPlayer) return;
-      const oldCount = prevPlayer.cards.length;
-      const newCount = newPlayer.cards.length;
-      const diff = newCount - oldCount;
-      if (diff > 0) {
-        // Если у игрока выставлен флаг is_defending – считаем его тем, кто взял карты со стола.
-        // (Вы можете изменить логику выбора tableTaker, если нужно.)
-        if (newPlayer.is_defending) {
-          tableTaker = newPlayer;
-        } else {
-          deckIncreases[newPlayer.id] = diff;
+      
+      if (newPlayer.id === myIdRef.current.toString()) {
+        // Для текущего игрока сравниваем data.cards, а не newPlayer.cards!
+        const prevCards = prevPlayerCardsRef.current;
+        const newCards = gameState.current?.data.cards || [];
+        const diff = newCards.filter(cardStr => !prevCards.includes(cardStr));
+
+        if (diff.length > 0) {
+          // Если текущий игрок находится в режиме защиты (то есть, он взял карты со стола),
+          // то он должен получить именно карты со стола, а не из колоды.
+          if (newPlayer.is_defending) {
+            tableTaker = newPlayer;
+          } else {
+            deckIncreases[newPlayer.id] = diff.length;
+            currentPlayerDiff = diff;
+          }
+        }
+      } else {
+        const diff = newPlayer.cards.length - prevPlayer.cards.length;
+        if (diff > 0) {
+          if (newPlayer.is_defending) {
+            tableTaker = newPlayer;
+          } else {
+            deckIncreases[newPlayer.id] = diff;
+          }
         }
       }
     });
     
-    // Сохраним детали раздачи и установим флаг.
-    setCardsTakenDetails({ tableTaker, deckIncreases });
+    setCardsTakenDetails({ tableTaker, deckIncreases, currentPlayerDiff });
     setCardsTaken(true);
   }
   
@@ -808,18 +827,18 @@ const dealInitialCards = (
   
   // Обновляем prevGameStateRef
   prevGameStateRef.current = gameState.current;
+  if (gameState.current.data.cards) {
+    prevPlayerCardsRef.current = [...gameState.current.data.cards];
+  }
 }, [gameState.current]);
 
 useEffect(() => {
   if (!cardsTaken) return;
   if (!gameState.current || !cardsTakenDetails) return;
-  
-  // Захватываем flip-стейт, если требуется для анимации
+
   flipStateRef.current = captureFlipState();
-  
-  const { tableTaker, deckIncreases } = cardsTakenDetails;
-  const newData = gameState.current.data; // можно использовать для получения новых строк карт
-  
+  const { tableTaker, deckIncreases, currentPlayerDiff } = cardsTakenDetails;
+
   // Если есть tableTaker – переносим все карты со стола в его руку:
   if (tableTaker) {
     setCards(prevCards =>
@@ -827,7 +846,6 @@ useEffect(() => {
         card.location === 'table'
           ? {
               ...card,
-              // Если наш игрок – 'player', иначе 'opponent'
               location: Number(tableTaker.id) === myIdRef.current ? 'player' : 'opponent',
               playerId: Number(tableTaker.id),
               tablePairIndex: undefined,
@@ -837,19 +855,16 @@ useEffect(() => {
       )
     );
   }
-  
-  // Для каждого игрока, у которого разница положительна, переводим из колоды нужное количество карт:
+
+  // Для каждого игрока, у которого разница положительна:
   Object.entries(deckIncreases).forEach(([playerId, addedCount]) => {
     if (Number(playerId) === myIdRef.current) {
-      // Для текущего игрока: берем новые строки карт и обновляем свойства через parseCard.
-      const addedCardStrings = newData.cards.slice(/* индекс старого количества */ /* индекс нового количества */);
-      // Если у вас нет сохранённого старого количества, можно решить эту проблему, добавив его в детали.
+      // Для текущего игрока используем currentPlayerDiff
       setCards(prevCards => {
         const updatedCards = [...prevCards];
-        for (let i = 0; i < addedCount; i++) {
+        currentPlayerDiff.forEach((cardStr) => {
           const deckIndex = updatedCards.findIndex(c => c.location === 'deck');
           if (deckIndex !== -1) {
-            const cardStr = addedCardStrings[i];
             const { suit, rank, trumpFlag } = parseCard(cardStr);
             updatedCards[deckIndex] = {
               ...updatedCards[deckIndex],
@@ -859,12 +874,14 @@ useEffect(() => {
               location: 'player',
               playerId: myIdRef.current,
             };
+          } else {
+            console.warn(`[cardsTaken] Нет карты в колоде для текущего игрока при обработке "${cardStr}"`);
           }
-        }
+        });
         return updatedCards;
       });
     } else {
-      // Для оппонентов – просто переводим из колоды нужное количество карт в руку.
+      // Для оппонентов – просто переводим нужное количество карт
       const opponentId = Number(playerId);
       setCards(prevCards => {
         const updatedCards = [...prevCards];
@@ -876,22 +893,23 @@ useEffect(() => {
               location: 'opponent',
               playerId: opponentId,
             };
+          } else {
+            console.warn(`[cardsTaken] Нет карты в колоде для оппонента ${opponentId} на итерации ${i}`);
           }
         }
         return updatedCards;
       });
     }
   });
-  
-  // Можно также сбросить tablePairs (если требуется очистка стола)
+
+  // Очистка стола
   setTablePairs(() =>
     Array.from({ length: mergedRules.maxTablePairs }, () => ({
       attackCardId: null,
       coverCardId: null,
     }))
   );
-  
-  // Сбрасываем флаг и детали, чтобы не повторять операцию
+
   setCardsTaken(false);
   setCardsTakenDetails(null);
 }, [cardsTaken]);
