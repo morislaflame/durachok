@@ -1,6 +1,12 @@
 import styled from "styled-components";
 
-export const NumberOFPlayers = () => {
+
+interface Props {
+    value: number;
+    onChange: (value: number) => void;
+}
+
+export const NumberOFPlayers = ({ value, onChange }: Props) => {
     const possibleNumbers = [2, 3, 4, 5, 6]
     return (
         <Container>
@@ -9,7 +15,10 @@ export const NumberOFPlayers = () => {
             </Label>
             <Row>
                 {possibleNumbers.map((number) => (
-                    <Item $isActive={number === 2}>
+                    <Item
+                        onClick={() => onChange(number)}
+                        $isActive={number === value}
+                        >
                         {number}
                     </Item>
                 ))}

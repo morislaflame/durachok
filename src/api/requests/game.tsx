@@ -58,3 +58,23 @@ export const quickGame = async ({players}: { players: number }) => {
 
     return (await response.json()) as { id: number }
 }
+
+
+export interface CreateGameProps {
+    bet: number,
+    maxPlayers: number,
+    friendsOnly: boolean
+}
+
+export const createGame = async ({bet, maxPlayers, friendsOnly}: CreateGameProps) => {
+    const response = await post(`/api/v1/game`, {
+        body: {
+            bet,
+            max_players: maxPlayers,
+            friends_only: friendsOnly
+        }
+    });
+
+    return (await response.json()) as { id: number }
+}
+

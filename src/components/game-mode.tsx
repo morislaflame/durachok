@@ -67,6 +67,8 @@ export const GameMode = () => {
 }
 
 
+
+
 const SLockIcon = styled(LockIcon)`
     position: absolute;
     top: 50%;
@@ -133,7 +135,8 @@ const Container = styled.div`
 `
 
 const Wrap = styled.div`
-    display: flex;
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
     align-items: flex-start;
     align-content: flex-start;
     gap: 8px;

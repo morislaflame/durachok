@@ -5,12 +5,14 @@ import {RefreshIcon} from "../components/icons/refresh.tsx";
 import {Bottom} from "../components/bottom.tsx";
 import {joinGame, quickGame, useGame} from "../api/requests/game.tsx";
 import {useNavigate} from "react-router";
+import {LowBalance} from "../components/low-balance.tsx";
+import {useState} from "react";
 
 export const MainView = () => {
+    const [isLowBalance, setIsLowBalance] = useState(false)
+
     const nav = useNavigate()
-
-
-    const {data} = useGame({
+    const {data, mutate} = useGame({
         limit: 10,
     })
 
@@ -34,10 +36,14 @@ export const MainView = () => {
             <Header name="John Doe" games={5} value={100} secondValue={200}/>
             <Content>
                 <Row>
-                    <Title>
+                    <Title onClick={() => {
+                        setIsLowBalance(true)
+                    }}>
                         Список игр
                     </Title>
-                    <Refresh>
+                    <Refresh onClick={async () => {
+                        await mutate()
+                    }}>
                         Обновить
                         <RefreshIcon/>
                     </Refresh>
@@ -47,11 +53,9 @@ export const MainView = () => {
                         onItem={onItemClick}
                         game={game} key={game.id}/>))}
                 </List>
-                <ListItem
-                    onItem={onItemClick}
-             />
             </Content>
             <Bottom onQuickPlay={onQuickGame}/>
+            <LowBalance visible={isLowBalance} onClose={() => setIsLowBalance(false)}/>
         </Container>
     )
 }
@@ -62,7 +66,18 @@ const List = styled.div`
     gap: 8px;
     flex-direction: column;
     width: 100%;
-    overflow-y: auto;
+    padding-bottom: 160px;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+
+    &::-webkit-scrollbar {
+        display: none;
+    }
+
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: none;
+    overflow: scroll;
+
 `
 
 
@@ -89,7 +104,14 @@ const Refresh = styled.div`
     opacity: 0.4;
     display: flex;
     align-items: center;
-    gap: 3px
+    gap: 3px;
+
+    &:active {
+        transform: scale(0.95);
+    }
+
+    cursor: pointer;
+
 `
 
 const Container = styled.div`
@@ -106,10 +128,8 @@ const Content = styled.div`
     display: flex;
     padding: 16px;
     flex-direction: column;
-    justify-content: center;
     align-items: center;
     gap: 16px;
-    flex: 1 0 0;
+    height: 100vh;
     align-self: stretch;
-
 `
