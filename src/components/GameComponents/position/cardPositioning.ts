@@ -15,6 +15,7 @@ export function getCardStyle(
   card: Card,
   allCards: Card[],
   numPlayers: number,
+  containerWidth: number,
 ): CSSProperties {
   // Группа: все карты, у которых такая же location и такой же seatIndex
   const sameLocationCards = allCards.filter(
@@ -31,13 +32,14 @@ export function getCardStyle(
       return getDeckCardStyle(indexInGroup);
 
     case 'player':
-      return getPlayerCardStyle(indexInGroup, sameLocationCards.length);
+      return getPlayerCardStyle(indexInGroup, sameLocationCards.length, containerWidth);
 
     case 'opponent': {
       // Для оппонентов нужно учесть seatIndex
       const seatIndex = card.seatIndex ?? 0;
       const numOpponents = numPlayers - 1;
       return getOpponentCardStyle(
+
         indexInGroup,
         sameLocationCards.length,
         seatIndex,
@@ -85,24 +87,44 @@ export function getTrumpCardStyle(): CSSProperties {
 }
 
 // Карты игрока (снизу)
-function getPlayerCardStyle(indexInGroup: number, totalCards: number): CSSProperties {
+function getPlayerCardStyle(indexInGroup: number, totalCards: number, containerWidth: number): CSSProperties {
   // Максимальная ширина, которую может занимать рука (в пикселях)
-  const maxHandWidth = 250; 
+  const maxHandWidthPercent = 0.8;
+  // Максимальная ширина руки в пикселях
+  const maxHandWidth = containerWidth * maxHandWidthPercent;
   // Ширина одной карты (как она задана ниже)
   const cardWidth = 60;
 
+  // Вычисляем перекрытие карт по горизонтали
   const calculatedOverlap = totalCards > 1 ? maxHandWidth / (totalCards - 1) : 0;
-  // Не допускаем перекрытия больше, чем заданный максимум (например, 50px)
   const overlap = Math.min(50, calculatedOverlap);
 
-  // Центрирование карт: смещаем всю группу так, чтобы она была по центру
+  // Центрирование всей группы карт
   const offsetX = -((totalCards - 1) * overlap) / 2;
-  const rotationAngle = (indexInGroup - totalCards / 2) * 6;
+  
+  // Базовый угол поворота
+  const baseRotationAngle = 3;
+  // Если карт больше 4, уменьшаем угол поворота пропорционально количеству карт.
+  // Таким образом, при totalCards <= 4 rotationScale = 1, а при большем числе карт — коэффициент становится меньше 1.
+  const rotationScale = totalCards > 4 ? (4 / totalCards) : 1;
+  const rotationAngle = (indexInGroup - totalCards / 2) * baseRotationAngle * rotationScale;
 
+  // Вычисляем вертикальное смещение для эффекта дуги.
+  const midIndex = (totalCards - 1) / 2;
+  const distanceFromCenter = Math.abs(indexInGroup - midIndex);
+  const verticalFactor = 1 - (distanceFromCenter / (midIndex || 1));
+  
+  // Базовое максимальное вертикальное смещение
+  const baseYOffset = 7;
+  // Если карт много, максимальное смещение уменьшается
+  const scalingFactor = totalCards > 0 ? Math.min(1, 4 / totalCards) : 1;
+  const yOffset = verticalFactor * baseYOffset * scalingFactor;
+  
   return {
     position: 'absolute',
-    top: '75%',
-    left: '45%', // Относительно родительского контейнера (GameBoard)
+    // Смещаем карту по вертикали (чем меньше значение top, тем выше карта)
+    top: `calc(75% - ${yOffset}px)`,
+    left: '45%', // Относительно родительского контейнера (например, GameBoard)
     transform: `translateX(${offsetX + overlap * indexInGroup}px) rotate(${rotationAngle}deg)`,
     transformOrigin: 'bottom center',
     zIndex: 10 + indexInGroup,
@@ -110,6 +132,8 @@ function getPlayerCardStyle(indexInGroup: number, totalCards: number): CSSProper
     height: '85px',
   };
 }
+
+
 
 
 /**

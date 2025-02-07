@@ -352,7 +352,7 @@ const dealInitialCards = (
           newFlipStateRef.current = Flip.getState(el, { props: 'transform, top, left, zIndex' });
         },
         onDragEnd: () => {
-          flipStateRef.current = Flip.getState(el, { props: 'transform, top, left, zIndex' });
+          flipStateRef.current = captureFlipState();
           handlePlayerCardDrop(card.stableId!, flipStateRef.current!);
         },
 
@@ -1054,7 +1054,7 @@ useEffect(() => {
   const isBeatVisible =
   gameState.current?.data?.actions?.some((action) => action.type === 'attack_pass') || false;
 
-
+  const containerWidth = gameBoardRef.current?.offsetWidth || 800;
 
   return (
     <div className={styles.gameBoard} ref={gameBoardRef}>
@@ -1130,7 +1130,7 @@ useEffect(() => {
         const style =
           card.stableId === trumpCardId && card.location === 'deck'
             ? getTrumpCardStyle()
-            : getCardStyle(card, cards, numPlayers);
+            : getCardStyle(card, cards, numPlayers, containerWidth);
 
         return (
           <CardItem
