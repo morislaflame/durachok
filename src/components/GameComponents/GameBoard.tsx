@@ -811,9 +811,7 @@ const dealInitialCards = (
   
   // Логика для битого:
   const prevTableCount = prevState.table.reduce((acc, slot) => {
-    const count =
-      (slot.attacking ? 1 : 0) +
-      (slot.defending ? 1 : 0);
+    const count = (slot.attacking ? 1 : 0) + (slot.defending ? 1 : 0);
     return acc + count;
   }, 0);
   
@@ -821,9 +819,33 @@ const dealInitialCards = (
   if (prevTableCount > 0 && newState.table.length === 0) {
     const beatenIncrease = newState.beaten.length - prevBeatenCount;
     if (beatenIncrease >= prevTableCount) {
+      // В случае битого (исключаем tableTaker)
+      const deckIncreases: { [playerId: string]: number } = {};
+      let currentPlayerDiff: string[] = [];
+      newState.players.forEach(newPlayer => {
+        const prevPlayer = prevState.players.find(p => p.id === newPlayer.id);
+        if (!prevPlayer) return;
+        if (newPlayer.id === myIdRef.current.toString()) {
+          const prevCards = prevPlayerCardsRef.current;
+          const newCards = gameState.current?.data.cards || [];
+          const diff = newCards.filter(cardStr => !prevCards.includes(cardStr));
+          if (diff.length > 0) {
+            deckIncreases[newPlayer.id] = diff.length;
+            currentPlayerDiff = diff;
+          }
+        } else {
+          const diff = newPlayer.cards.length - prevPlayer.cards.length;
+          if (diff > 0) {
+            deckIncreases[newPlayer.id] = diff;
+          }
+        }
+      });
+      // В битом случае tableTaker остается null
+      setCardsTakenDetails({ tableTaker: null, deckIncreases, currentPlayerDiff });
       setIsBeaten(true);
     }
   }
+  
   
   // Обновляем prevGameStateRef
   prevGameStateRef.current = gameState.current;
@@ -916,30 +938,84 @@ useEffect(() => {
 
 
 
-// 2-й useEffect: обработка флага isBeaten и перемещение карт со стола в discard
+// Эффект для обработки флага isBeaten (битый)
 useEffect(() => {
-  if (isBeaten) {
-    console.log('isBeaten === true');
-    // Захватываем состояние для анимации (если требуется)
-    flipStateRef.current = captureFlipState();
-    
-    // Обновляем карточки: все, что были на столе, переводим в discard
-    setCards((prevCards) =>
-      prevCards.map((card) =>
-        card.location === 'table'
-          ? { ...card, location: 'discard' }
-          : card
-      )
-    );
-    setTablePairs(() => Array.from({ length: mergedRules.maxTablePairs }, () => ({
-        attackCardId: null,
-        coverCardId: null,
-      })))
+  if (!isBeaten) return;
+  if (!gameState.current || !cardsTakenDetails) return;
 
-    // Сбрасываем флаг, чтобы не триггерить повторно
-    setIsBeaten(false);
-  }
+  // Захватываем flip-стейт для анимации (если требуется)
+  flipStateRef.current = captureFlipState();
+
+  // 1. Перемещаем все карты, находящиеся на столе, в discard
+  setCards(prevCards =>
+    prevCards.map(card =>
+      card.location === 'table'
+        ? { ...card, location: 'discard' }
+        : card
+    )
+  );
+
+  // 2. Очищаем слоты стола
+  setTablePairs(() =>
+    Array.from({ length: mergedRules.maxTablePairs }, () => ({
+      attackCardId: null,
+      coverCardId: null,
+    }))
+  );
+
+  // 3. Раздаем новые карты из колоды тем игрокам, у которых увеличилось число карт
+  const { deckIncreases, currentPlayerDiff } = cardsTakenDetails;
+
+  Object.entries(deckIncreases).forEach(([playerId, addedCount]) => {
+    if (Number(playerId) === myIdRef.current) {
+      // Для текущего игрока используем currentPlayerDiff (новые строки из data.cards)
+      setCards(prevCards => {
+        const updatedCards = [...prevCards];
+        currentPlayerDiff.forEach((cardStr) => {
+          const deckIndex = updatedCards.findIndex(c => c.location === 'deck');
+          if (deckIndex !== -1) {
+            const { suit, rank, trumpFlag } = parseCard(cardStr);
+            updatedCards[deckIndex] = {
+              ...updatedCards[deckIndex],
+              suit,
+              rank,
+              trumpFlag,
+              location: 'player',
+              playerId: myIdRef.current,
+            };
+          } else {
+            console.warn(`[isBeaten] Нет карты в колоде для текущего игрока при обработке "${cardStr}"`);
+          }
+        });
+        return updatedCards;
+      });
+    } else {
+      // Для оппонентов просто переводим указанное количество карт из колоды в их руку
+      const opponentId = Number(playerId);
+      setCards(prevCards => {
+        const updatedCards = [...prevCards];
+        for (let i = 0; i < addedCount; i++) {
+          const deckIndex = updatedCards.findIndex(c => c.location === 'deck');
+          if (deckIndex !== -1) {
+            updatedCards[deckIndex] = {
+              ...updatedCards[deckIndex],
+              location: 'opponent',
+              playerId: opponentId,
+            };
+          } else {
+            console.warn(`[isBeaten] Нет карты в колоде для оппонента ${opponentId} на итерации ${i}`);
+          }
+        }
+        return updatedCards;
+      });
+    }
+  });
+
+  // Сбрасываем флаг isBeaten и очищаем детали раздачи, чтобы не повторять операцию
+  setIsBeaten(false);
+  setCardsTakenDetails(null);
 }, [isBeaten]);
+
 
 
   
