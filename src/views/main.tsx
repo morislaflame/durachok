@@ -3,7 +3,7 @@ import {Header} from "../components/header.tsx";
 import {ListItem} from "../components/list-item.tsx";
 import {RefreshIcon} from "../components/icons/refresh.tsx";
 import {Bottom} from "../components/bottom.tsx";
-import {joinGame, quickGame, useGame} from "../api/requests/game.tsx";
+import {joinGame, leaveGame, quickGame, useGame} from "../api/requests/game.tsx";
 import {useNavigate} from "react-router";
 import {LowBalance} from "../components/low-balance.tsx";
 import {useState} from "react";
@@ -17,6 +17,7 @@ export const MainView = () => {
     })
 
     const onItemClick = async (gameId: number) => {
+        await leaveGame()
         const response = await joinGame({gameId})
         if (response.id) {
             nav(`/game/${gameId}`)
