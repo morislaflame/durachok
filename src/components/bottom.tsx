@@ -91,11 +91,13 @@ const PrimaryButton = styled.div`
     min-width: 160px;
     color: #180A03;
     text-align: center;
-    font-size: 16px;
+    font-size: 14px;
     font-style: normal;
     font-weight: 500;
     line-height: 120%; /* 19.2px */
-
+    @media (max-width: 380px) {
+        font-size: 14px;
+    }
     &:before {
         position: absolute;
         pointer-events: none;

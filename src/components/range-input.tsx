@@ -6,8 +6,16 @@ const STEP = 100;
 const MIN = 100;
 const MAX = 50000;
 
-export const RangeSlider: React.FC<{ rtl: boolean }> = ({ rtl }) => {
-    const [values, setValues] = React.useState([2500]);
+
+
+
+interface RangeSliderProps {
+    values: number[];
+    onChange: (values: number[]) => void;
+}
+
+
+export const RangeSlider = ({ values, onChange }: RangeSliderProps) => {
 
     const formatValue = (value: number) => {
         if (value >= 1000) {
@@ -21,13 +29,16 @@ export const RangeSlider: React.FC<{ rtl: boolean }> = ({ rtl }) => {
             <Label>
                 Ваша ставка
             </Label>
+            <Label>
+                {formatValue(values[0])}
+            </Label>
             <Range
                 values={values}
                 step={STEP}
                 min={MIN}
                 max={MAX}
-                rtl={rtl}
-                onChange={(values) => setValues(values)}
+                rtl={false}
+                onChange={(values) => onChange(values)}
                 renderTrack={({ props, children }) => (
                     <div
                         onMouseDown={props.onMouseDown}
@@ -42,15 +53,15 @@ export const RangeSlider: React.FC<{ rtl: boolean }> = ({ rtl }) => {
                             ref={props.ref}
                             style={{
                                 height: '8px',
-                                width: '100%',
+                                width: '92%',
                                 borderRadius: '4px',
+                                margin: '0px auto',
                                 background: getTrackBackground({
                                     values,
                                     colors: ['#64CB48', '#08080D'],
                                     min: MIN,
                                     max: MAX,
-                                    rtl,
-                                }),
+                                 }),
                                 alignSelf: 'center',
                             }}
                         >
@@ -69,13 +80,23 @@ export const RangeSlider: React.FC<{ rtl: boolean }> = ({ rtl }) => {
                 )}
             />
             <ScaleContainer>
-                {['100', '500', '2,5к', '10к', '50к'].map((label, index) => (
-                    <ScaleLabel key={index}>{label}</ScaleLabel>
-                ))}
+                <ScaleLabel>
+                    {formatValue(MIN)}
+                </ScaleLabel>
+                <ScaleLabel>
+                    {formatValue(MAX / 4)}
+                </ScaleLabel>
+                <ScaleLabel>
+                    {formatValue(MAX / 2)}
+                </ScaleLabel>
+                <ScaleLabel>
+                    {formatValue(37500)}
+                </ScaleLabel>
+                <ScaleLabel>
+                    {formatValue(MAX)}
+                </ScaleLabel>
             </ScaleContainer>
-            {/*<output style={{ marginTop: '20px', fontSize: '18px', color: '#fff' }} id="output">*/}
-            {/*    {formatValue(values[0])}*/}
-            {/*</output>*/}
+
         </Container>
     );
 };
