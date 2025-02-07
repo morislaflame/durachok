@@ -1,14 +1,22 @@
 import styled from "styled-components";
 import {Switch} from "./switch.tsx";
 
-export const OnlyForFiends = () => {
 
+interface OnlyForFiendsProps {
+    onChange: (value: boolean) => void;
+    value: boolean;
+}
+
+export const OnlyForFiends = ({ value, onChange }: OnlyForFiendsProps) => {
     return (
         <Container>
             <Label>
                 Только для друзей
             </Label>
-            <Switch/>
+            <Switch
+                value={value}
+                onChange={onChange}
+            />
         </Container>
     )
 }

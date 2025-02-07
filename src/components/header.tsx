@@ -1,14 +1,24 @@
 import styled from "styled-components";
 import React from "react";
+import {Coin} from "./icons/coin.tsx";
+import {useNavigate} from "react-router";
 
 interface HeaderProps {
     name: string;
     games: number;
     value: number;
-    secondValue: number;
+    secondValue?: number;
 }
 
-export const Header = ({name, games, value, secondValue}: HeaderProps) => {
+export const Header = ({name, games, value}: HeaderProps) => {
+
+
+    const nav = useNavigate()
+
+    const onClick = () => {
+        nav('/buy')
+    }
+
     return (
         <Container>
             <Left>
@@ -21,13 +31,13 @@ export const Header = ({name, games, value, secondValue}: HeaderProps) => {
             <Right>
                 <RightCol>
                     <Value1>
-                        {value}
+                        {value} <Coin style={{
+                        width: 20,
+                        height: 20
+                    }}/>
                     </Value1>
-                    <Value2>
-                        {secondValue}
-                    </Value2>
                 </RightCol>
-                <PlusButton>
+                <PlusButton onClick={onClick}>
                     <StyledPlusIcon/>
                 </PlusButton>
             </Right>
@@ -77,7 +87,6 @@ const LeftCol = styled.div`
 
 const RightCol = styled.div`
     display: flex;
-    height: 40px;
     flex-direction: column;
     justify-content: space-between;
     align-items: flex-end;
@@ -116,7 +125,7 @@ const Right = styled.div`
 
 const Value1 = styled.div`
     color: #FFF;
-    text-align: right;
+    text-align: center;
     font-size: 16px;
     font-style: normal;
     font-weight: 400;
@@ -124,18 +133,10 @@ const Value1 = styled.div`
     letter-spacing: -0.16px;
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 4px;
 `
 
-const Value2 = styled.div`
-    color: #FFF;
-    text-align: right;
-    font-size: 13px;
-    font-style: normal;
-    font-weight: 400;
-    line-height: 120%; /* 15.6px */
-    letter-spacing: -0.13px;
-`
+
 
 
 const PlusButton = styled.div`
@@ -163,10 +164,15 @@ const PlusButton = styled.div`
         mask-composite: exclude;
         padding: 1px;
     }
+    &:active {
+        transform: scale(0.95);
+    }
+
+    cursor: pointer;
 `
 
 
-const PlusIcon = (props:React.SVGProps<SVGSVGElement>) => {
+const PlusIcon = (props: React.SVGProps<SVGSVGElement>) => {
     return (
         <svg
             {...props}

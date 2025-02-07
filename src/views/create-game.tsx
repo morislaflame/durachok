@@ -5,21 +5,44 @@ import {NumberOFPlayers} from "../components/number-of-players.tsx";
 import {OnlyForFiends} from "../components/only-for-friends.tsx";
 import {PlusIcon} from "../components/icons/plus.tsx";
 import {GameMode} from "../components/game-mode.tsx";
+import {createGame, CreateGameProps} from "../api/requests/game.tsx";
+import React from "react";
 
 export const CreateGame = () => {
+    const [form, setForm] = React.useState<CreateGameProps>({
+        bet: 100,
+        maxPlayers: 2,
+        friendsOnly: false
+    })
+    const onCreateGame = async () => {
+        console.log('Create game', form)
+        const response = await createGame(form)
+        if (response.id) {
+            console.log('Game created')
+        }
+    }
+
     return (
         <Container>
             <Header name="John Doe" games={5} value={100} secondValue={200}/>
+            <Title>
+                Создать стол
+            </Title>
             <Column>
-                {/*@ts-expect-error*/}
-                <RangeSlider/>
-                <NumberOFPlayers/>
+                <RangeSlider
+                    values={[form.bet]}
+                    onChange={(values) => setForm({...form, bet: values[0]})}
+                />
+                <NumberOFPlayers
+                    value={form.maxPlayers}
+                    onChange={(value) => setForm({...form, maxPlayers: value})}
+                />
                 <GameMode/>
-                <OnlyForFiends/>
+                <OnlyForFiends value={form.friendsOnly} onChange={(value) => setForm({...form, friendsOnly: value})}/>
             </Column>
             <Bottom>
                 <BottomInner>
-                    <PrimaryButton>
+                    <PrimaryButton onClick={onCreateGame}>
                         <PlusIcon/>
                         Создать игру
                     </PrimaryButton>
@@ -29,6 +52,21 @@ export const CreateGame = () => {
     )
 }
 
+
+const Title = styled.div`
+    color: #FAFEFC;
+    font-size: 16px;
+    font-style: normal;
+    font-weight: 500;
+    line-height: 120%;
+    display: flex;
+    align-items: flex-start;
+    justify-content: flex-start;
+    padding-top: 16px;
+    width: 100%;
+    padding-left: 16px;
+
+`
 
 const PrimaryButton = styled.div`
     position: relative;

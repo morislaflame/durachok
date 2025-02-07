@@ -1,16 +1,20 @@
-import React, {useState} from 'react';
 import styled from 'styled-components';
 
-export const Switch: React.FC = () => {
-    const [isOn, setIsOn] = useState(false);
+
+interface OnlyForFiendsProps {
+    onChange: (value: boolean) => void;
+    value: boolean;
+}
+
+export const Switch = ({value, onChange}: OnlyForFiendsProps) => {
 
     const toggleSwitch = () => {
-        setIsOn(!isOn);
+        onChange(!value);
     };
 
     return (
-        <SwitchContainer onClick={toggleSwitch} isOn={isOn}>
-            <SwitchToggle isOn={isOn}/>
+        <SwitchContainer onClick={toggleSwitch} isOn={value}>
+            <SwitchToggle isOn={value}/>
         </SwitchContainer>
     );
 };
