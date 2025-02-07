@@ -235,6 +235,7 @@ const GameBoard: React.FC<GameBoardProps> = ({ rules = {} }) => {
         // console.log('players', players);
         setPlayers(orderedPlayers);
         setOpponents(localOpponents);
+        console.log('localOpponents', localOpponents);
 
         const currentPlayerHandSize = incomingState.data.cards.length;
         console.log('currentPlayerHandSize', currentPlayerHandSize);

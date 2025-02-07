@@ -97,11 +97,11 @@ function getPlayerCardStyle(indexInGroup: number, totalCards: number): CSSProper
 
   // Центрирование карт: смещаем всю группу так, чтобы она была по центру
   const offsetX = -((totalCards - 1) * overlap) / 2;
-  const rotationAngle = (indexInGroup - totalCards / 2) * 2;
+  const rotationAngle = (indexInGroup - totalCards / 2) * 6;
 
   return {
     position: 'absolute',
-    top: '80%',
+    top: '75%',
     left: '45%', // Относительно родительского контейнера (GameBoard)
     transform: `translateX(${offsetX + overlap * indexInGroup}px) rotate(${rotationAngle}deg)`,
     transformOrigin: 'bottom center',

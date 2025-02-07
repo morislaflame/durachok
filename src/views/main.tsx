@@ -17,7 +17,7 @@ export const MainView = () => {
     })
 
     const onItemClick = async (gameId: number) => {
-        await leaveGame()
+        // await leaveGame()
         const response = await joinGame({gameId})
         if (response.id) {
             nav(`/game/${gameId}`)
