@@ -27,4 +27,7 @@ const Opponent: React.FC<OpponentProps> = ({ cards, playerId }) => {
   );
 };
 
+
+
+
 export default Opponent;

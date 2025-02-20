@@ -1,8 +1,9 @@
 .container {
-    width: 45px;
-    height: 70px;
-    background: white;
-    border-radius: 8px;
+    /*width: 45px;*/
+    /*height: 70px;*/
+    width: 50.754px;
+    height: 71.902px;
+    /*background: white;*/
     display: flex;
     justify-content: space-between;
     padding: 5px;
@@ -12,10 +13,10 @@
 }
 
 .playerCard {
-    width: 60px;
-    height: 85px;
-    padding: 10px;
-    
+    /*width: 50.754px;*/
+    /*height: 71.902px;*/
+    width: 100.604px;
+    height: 140.175px;
 }
 
 .tableCard {

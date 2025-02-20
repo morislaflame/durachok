@@ -26,6 +26,8 @@ export const MainView = () => {
 
 
     const onQuickGame = async () => {
+        // await leaveGame()
+
         const response = await quickGame({players: 2})
         if (response.id) {
             nav(`/game/${response.id}`)

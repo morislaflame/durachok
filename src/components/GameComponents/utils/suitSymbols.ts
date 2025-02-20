@@ -3,13 +3,13 @@ import { Suit } from '../../../types/types';
 
 export function getSuitSymbol(suit: Suit): string {
   switch (suit) {
-    case 'hearts':
+    case 'H':
       return '♥';
-    case 'diamonds':
+    case 'D':
       return '♦';
-    case 'clubs':
+    case 'C':
       return '♣';
-    case 'spades':
+    case 'S':
       return '♠';
     default:
       return '';
@@ -17,7 +17,6 @@ export function getSuitSymbol(suit: Suit): string {
 }
 
 export function getSuitClass(suit: Suit): string {
-  return suit === 'hearts' || suit === 'diamonds' ? 'red'
-  : 'black';
+  return suit === 'H' || suit === 'D' ? 'red' : 'black';
 }
 

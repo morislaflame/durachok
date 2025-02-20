@@ -3,7 +3,6 @@ import { Card } from '../../types/types';
 import styles from './styles/Player.module.css';
 import Avatar from './Avatar';
 import UserActions from './UserActions';
-import avatarImage from '../../assets/avatar.jpg';
 
 interface PlayerProps {
   onStartGame?: () => void;
@@ -25,9 +24,7 @@ const Player: React.FC<PlayerProps> = ({ onStartGame, onBeat, isBeatVisible, car
           onTakeCards={onTakeCards}
           isTakeVisible={isTakeVisible}
         />
-        <Avatar imageUrl={avatarImage} size="small" alt="Player avatar" />
-        <span className={styles.playerName}>Player</span>
-        <span className={styles.cardsCount}>Cards: {cards.length}</span>
+        <Avatar imageUrl={'/emoji.png'} size="small" alt="Player avatar" />
       </div>
     </div>
   );

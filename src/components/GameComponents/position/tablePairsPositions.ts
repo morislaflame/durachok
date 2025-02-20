@@ -16,28 +16,28 @@ export interface CardSlotPosition {
    */
   export const TABLE_PAIRS_POSITIONS: TablePairPositions[] = [
     {
-      attack: { top: 30, left: 20 },
-      cover:  { top: 27, left: 24 },
+      attack: { top: 40, left: 30 },
+      cover:  { top: 37, left: 34 },
     },
     {
-      attack: { top: 30, left: 40 },
-      cover:  { top: 27, left: 44 },
+      attack: { top: 40, left: 50 },
+      cover:  { top: 37, left: 54 },
     },
     {
-      attack: { top: 30, left: 60 },
-      cover:  { top: 27, left: 64 },
+      attack: { top: 40, left: 70 },
+      cover:  { top: 37, left: 74 },
     },
     {
-      attack: { top: 50, left: 20 },
-      cover:  { top: 47, left: 24 },
+      attack: { top: 50, left: 30 },
+      cover:  { top: 47, left: 34 },
     },
     {
-      attack: { top: 50, left: 40 },
-      cover:  { top: 47, left: 44 },
+      attack: { top: 50, left: 50 },
+      cover:  { top: 47, left: 54 },
     },
     {
-      attack: { top: 50, left: 60 },
-      cover:  { top: 47, left: 64 },
+      attack: { top: 50, left: 70 },
+      cover:  { top: 47, left: 74 },
     },
   ];
   

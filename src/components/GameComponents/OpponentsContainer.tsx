@@ -39,7 +39,6 @@ const OpponentsContainer: React.FC<OpponentsContainerProps> = ({
               cards={opponentCards} 
               playerId={opponent.id} // передаём корректный id
             />
-
           </div>
         );
       })}

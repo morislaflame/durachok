@@ -124,7 +124,7 @@ function getPlayerCardStyle(indexInGroup: number, totalCards: number, containerW
     position: 'absolute',
     // Смещаем карту по вертикали (чем меньше значение top, тем выше карта)
     top: `calc(75% - ${yOffset}px)`,
-    left: '45%', // Относительно родительского контейнера (например, GameBoard)
+    left: '40%', // Относительно родительского контейнера (например, GameBoard)
     transform: `translateX(${offsetX + overlap * indexInGroup}px) rotate(${rotationAngle}deg)`,
     transformOrigin: 'bottom center',
     zIndex: 1000 + indexInGroup,
@@ -199,7 +199,7 @@ function getTablePairStyle(card: Card): CSSProperties {
       zIndex,
       width: '50px',
       height: '70px',
-      transform: 'none',
+      transform: 'translate(-50%, -50%)',
     };
   }
   

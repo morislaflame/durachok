@@ -2,6 +2,7 @@ import styled from "styled-components";
 import {PlayIcon} from "./icons/play.tsx";
 import {PlusIcon} from "./icons/plus.tsx";
 import {useNavigate} from "react-router";
+import {leaveGame} from "../api/requests/game.tsx";
 
 
 
@@ -14,7 +15,8 @@ export const Bottom = ({onQuickPlay}: Props) => {
 
 
     const onCreate = () => {
-        nav('/create')
+        leaveGame()
+        // nav('/create')
     }
 
     return (

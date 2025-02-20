@@ -5,7 +5,7 @@ import {NumberOFPlayers} from "../components/number-of-players.tsx";
 import {OnlyForFiends} from "../components/only-for-friends.tsx";
 import {PlusIcon} from "../components/icons/plus.tsx";
 import {GameMode} from "../components/game-mode.tsx";
-import {createGame, CreateGameProps} from "../api/requests/game.tsx";
+import {createGame, CreateGameProps, leaveGame} from "../api/requests/game.tsx";
 import React from "react";
 
 export const CreateGame = () => {
